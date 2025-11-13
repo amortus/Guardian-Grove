@@ -3,9 +3,9 @@
  * Guardian Grove Server
  */
 
-import { pool } from './connection';
 import fs from 'fs';
 import path from 'path';
+import { pool } from './connection';
 
 async function runMigrations() {
   console.log('[Migration] Starting database migrations...');
@@ -33,15 +33,40 @@ async function runMigrations() {
     return;
   }
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS migration_history (
+      id SERIAL PRIMARY KEY,
+      filename TEXT UNIQUE NOT NULL,
+      executed_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   for (const file of migrationFiles) {
+    const alreadyRan = await pool.query(
+      'SELECT 1 FROM migration_history WHERE filename = $1',
+      [file]
+    );
+
+    if (alreadyRan.rowCount > 0) {
+      console.log(`[Migration] Skipping ${file} (already applied)`);
+      continue;
+    }
+
     console.log(`[Migration] Running ${file}...`);
     const filePath = path.join(migrationsDir, file);
     const sql = fs.readFileSync(filePath, 'utf8');
     
     try {
+      await pool.query('BEGIN');
       await pool.query(sql);
+      await pool.query(
+        'INSERT INTO migration_history (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING',
+        [file]
+      );
+      await pool.query('COMMIT');
       console.log(`[Migration] ✓ ${file} completed successfully`);
     } catch (error) {
+      await pool.query('ROLLBACK');
       console.error(`[Migration] ✗ ${file} failed:`, error);
       throw error;
     }
