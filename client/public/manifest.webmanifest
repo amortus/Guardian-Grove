@@ -1,7 +1,7 @@
 {
-  "name": "Beast Keepers",
-  "short_name": "Beast Keepers",
-  "description": "Jogo 2D/3D de criação e batalha de criaturas",
+  "name": "Guardian Grove",
+  "short_name": "Guardian Grove",
+  "description": "Santuário cooperativo de guardiões místicos com batalhas táticas e hub 3D",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",

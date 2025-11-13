@@ -2,9 +2,9 @@
 
 ## 📍 URLs de Produção
 
-- **Frontend:** https://vanilla-game.vercel.app
-- **Backend:** https://web-production-8f5f4.up.railway.app
-- **GitHub:** https://github.com/amortus/guardian-grove-game
+- **Frontend:** https://guardian-grove.vercel.app
+- **Backend:** https://guardian-grove-production.up.railway.app
+- **GitHub:** https://github.com/amortus/Guardian-Grove
 
 ---
 
@@ -12,10 +12,10 @@
 
 ### Auto-Deploy Configurado ✅
 
-Toda vez que você faz `git push`:
-1. Vercel detecta o push
-2. Faz build automático
-3. Deploy em ~2-3 minutos
+Guardian Grove está conectado ao Vercel:
+1. `git push` para `master` no GitHub.
+2. Vercel detecta o push.
+3. Build automático e deploy em ~2-3 minutos.
 
 **Comandos:**
 ```bash
@@ -38,7 +38,7 @@ git push
 
 1. Acesse: https://railway.app/dashboard
 2. Encontre o projeto "Guardian Grove"
-3. Clique no serviço (web-production-8f5f4)
+3. Clique no serviço (`guardian-grove-production`)
 4. Opções:
    - Clique em **"Deploy"** ou **"Redeploy"**
    - OU clique nos **⋮** → **"Redeploy"**
@@ -51,8 +51,8 @@ git push
 1. No Railway Dashboard → Projeto → Serviço
 2. Settings → Source
 3. Connect to GitHub:
-   - Repo: `amortus/guardian-grove-game`
-   - Branch: `main`
+   - Repo: `amortus/Guardian-Grove`
+   - Branch: `master`
    - Root Directory: `/server`
 4. Enable: **"Auto Deploy on Push"**
 5. Salvar
@@ -67,10 +67,10 @@ Após fazer deploy de ambos:
 
 ```bash
 # Testar Frontend
-curl https://vanilla-game.vercel.app
+curl https://guardian-grove.vercel.app
 
 # Testar Backend
-curl https://web-production-8f5f4.up.railway.app/api/health
+curl https://guardian-grove-production.up.railway.app/api/health
 ```
 
 Ou acesse no navegador e teste o jogo!

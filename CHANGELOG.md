@@ -5,6 +5,24 @@ Todas as mudanças notáveis neste projeto serão documentadas aqui.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [0.1.0-jam] - 2025-11-13
+
+### ✅ Base Migrada
+- Clonagem completa do Beast Keepers para o novo repositório `Guardian Grove`.
+- Rebrand inicial (nomes, manifests, metadata, LICENSE e configs de deploy).
+- Configuração de workspaces npm (client/server/shared) com versão `0.1.0`.
+- Cadastro do projeto na `vectorize-workspace.yml` para indexação pelo Vectorizer.
+- Sincronização de docs de deploy (Railway + Vercel) apontando para os novos domínios.
+
+### 📌 Backlog da JAM
+- [ ] Criar assets/ícones próprios para Guardian Grove (substituir placeholders herdados).
+- [ ] Limitar hubs para até 5 jogadores por sala com criação dinâmica.
+- [ ] Transformar menus HUD em interações físicas (quadro de missões, NPCs, portais).
+- [ ] Revisar fluxo educativo (missões/mini-games alinhados ao tema da jam).
+- [ ] Ajustar balanceamento dos guardiões para cooperativo rápido (sessões curtas).
+- [ ] Preparar pitch/apresentação (screenshots, vídeo curto e descrição temática).
+- [ ] Configurar monitoramento/logs mínimos em produção (Railway/Vercel).
+
 ---
 
 ## [1.0.0] - 2025-10-19

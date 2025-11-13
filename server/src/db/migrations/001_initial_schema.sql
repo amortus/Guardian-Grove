@@ -1,4 +1,4 @@
--- Beast Keepers Database Schema
+-- Guardian Grove Database Schema
 -- Initial Migration
 
 -- Users table

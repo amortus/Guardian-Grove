@@ -1,13 +1,13 @@
 {
-  "version": "2.0.0-stable-2d-only",
-  "build": "main-Bk7g2-bk",
-  "timestamp": "2024-11-01T18:30:00Z",
-  "system": "2D Classic Battle System",
+  "version": "0.1.0-jam-bootstrap",
+  "build": "guardian-grove-clone",
+  "timestamp": "2025-11-13T00:00:00Z",
+  "system": "Guardian Grove JAM Build",
   "features": [
-    "BattleUI 2D funcional",
-    "Sem sistema híbrido",
-    "Sem 3D arena",
-    "100% estável"
+    "Hub 3D cooperativo",
+    "Integração multiplayer Socket.io",
+    "Sistema de batalhas táticas 2D/3D",
+    "Configuração base clonada do projeto original"
   ]
 }
 

@@ -1,6 +1,6 @@
-Version: 1.1.1-dungeons-fix
-Build Date: 2024-11-01 16:15
-Commit: d6cf120
-Features: Dungeons system with fatigue integration
-Expected File: main-cGmNderf.js or newer
+Version: 0.1.0-guardian-grove
+Build Date: 2025-11-13 11:55
+Commit: initial-clone
+Features: Guardian Grove JAM bootstrap with cooperative hub
+Expected File: main-gJvwcsbX.js or newer
 
