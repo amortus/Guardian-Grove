@@ -3,21 +3,30 @@
  */
 
 export const COLORS = {
-  // Backgrounds base usados para contrastes gerais
+  // Fundos base inspirados no santuário (tons de verde musgo)
   bg: {
-    dark: '#030712',
-    medium: '#05091A',
-    light: '#0F172A',
+    dark: '#0a1b13',
+    medium: '#123522',
+    light: '#1f4b2f',
   },
 
-  // Primárias / acentos principais
+  // Paleta primária para elementos interativos
   primary: {
-    purple: '#7C3AED',
-    purpleDark: '#5B21B6',
-    green: '#22C55E',
-    gold: '#FACC15',
-    blue: '#38BDF8',
-    red: '#F87171',
+    forest: '#2ea05c',
+    forestDark: '#1f7b44',
+    grove: '#6fdd6a',
+    amber: '#f4ca64',
+    sky: '#68c5df',
+    flame: '#f7876b',
+    flameDark: '#d86a48',
+    // aliases legados para manter compatibilidade com UIs antigas
+    gold: '#f4ca64',
+    purple: '#2ea05c',
+    purpleDark: '#1f7b44',
+    green: '#6fdd6a',
+    blue: '#68c5df',
+    red: '#f7876b',
+    redDark: '#d86a48',
   },
 
   // Atributos principais (mantidos para lógica de jogo)
@@ -32,34 +41,34 @@ export const COLORS = {
 
   // Elementos mágicos
   elements: {
-    fire: '#FB7185',
-    water: '#38BDF8',
-    earth: '#8B7355',
-    air: '#94A3B8',
-    shadow: '#1E293B',
-    light: '#FACC15',
-    ether: '#A855F7',
-    moon: '#C4B5FD',
-    blood: '#DC2626',
+    fire: '#ff8a70',
+    water: '#4fc1e4',
+    earth: '#b58a55',
+    air: '#9fb7cd',
+    shadow: '#1c2b32',
+    light: '#ffe587',
+    ether: '#8a7ae6',
+    moon: '#cdd5ff',
+    blood: '#dd3e45',
   },
 
   // UI (alerts, texto, etc.)
   ui: {
-    success: '#22C55E',
-    warning: '#F97316',
-    error: '#F87171',
-    info: '#38BDF8',
-    text: '#F5F9FF',
-    textDim: '#9CA3C2',
+    success: '#63d18d',
+    warning: '#ffb454',
+    error: '#f16d6d',
+    info: '#6ac8e6',
+    text: '#f9fff4',
+    textDim: '#c3d8c6',
   },
 
   // Estados rápidos
   status: {
-    happy: '#34D399',
-    neutral: '#9CA3C2',
-    sad: '#60A5FA',
-    angry: '#F97316',
-    tired: '#FACC15',
+    happy: '#7ae686',
+    neutral: '#a4c2b0',
+    sad: '#7db4f2',
+    angry: '#ff9b54',
+    tired: '#ffd27f',
   },
 };
 

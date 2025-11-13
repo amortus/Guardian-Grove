@@ -49,7 +49,7 @@ export class Village3DUI {
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.8);
-      color: ${COLORS.primary.gold};
+      color: ${COLORS.primary.amber};
       padding: 10px 20px;
       border-radius: 5px;
       font-family: monospace;
@@ -70,7 +70,7 @@ export class Village3DUI {
       position: absolute;
       top: 20px;
       left: 20px;
-      background: ${COLORS.primary.red};
+      background: ${COLORS.primary.flame};
       color: white;
       border: none;
       padding: 10px 20px;
@@ -88,10 +88,10 @@ export class Village3DUI {
       }
     });
     closeButton.addEventListener('mouseenter', () => {
-      closeButton.style.background = COLORS.primary.redDark;
+      closeButton.style.background = COLORS.primary.flameDark;
     });
     closeButton.addEventListener('mouseleave', () => {
-      closeButton.style.background = COLORS.primary.red;
+      closeButton.style.background = COLORS.primary.flame;
     });
     this.container.appendChild(closeButton);
     
@@ -169,7 +169,7 @@ export class Village3DUI {
       width: 400px;
       height: 30px;
       background: rgba(0, 0, 0, 0.5);
-      border: 2px solid ${COLORS.primary.gold};
+      border: 2px solid ${COLORS.primary.amber};
       border-radius: 15px;
       overflow: hidden;
       position: relative;
@@ -179,9 +179,9 @@ export class Village3DUI {
     this.loadingBar.style.cssText = `
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, ${COLORS.primary.gold}, ${COLORS.primary.amber});
+      background: linear-gradient(90deg, ${COLORS.primary.amber}, ${COLORS.primary.grove});
       transition: width 0.3s ease;
-      box-shadow: 0 0 10px ${COLORS.primary.gold};
+      box-shadow: 0 0 10px ${COLORS.primary.amber};
     `;
     progressContainer.appendChild(this.loadingBar);
 

@@ -896,7 +896,7 @@ export class AuthUI {
     this.ctx.shadowBlur = 30;
     drawPanel(this.ctx, panelX, panelY, panelWidth, panelHeight, {
       bgColor: '#1a1a2e',
-      borderColor: COLORS.primary.gold
+      borderColor: COLORS.primary.amber
     });
     this.ctx.shadowBlur = 0;
 
@@ -911,7 +911,7 @@ export class AuthUI {
     } else {
       drawText(this.ctx, 'Guardian Grove', panelX + panelWidth / 2, panelY + 120, {
         font: 'bold 48px monospace',
-        color: COLORS.primary.gold,
+      color: COLORS.primary.amber,
         align: 'center'
       });
     }
@@ -938,7 +938,7 @@ export class AuthUI {
     });
 
     // Separator line
-    this.ctx.strokeStyle = COLORS.primary.gold;
+    this.ctx.strokeStyle = COLORS.primary.amber;
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
     this.ctx.moveTo(panelX + 150, panelY + 360);
@@ -955,8 +955,8 @@ export class AuthUI {
     // Login button
     const loginBtnY = panelY + 400;
     drawButton(this.ctx, buttonX, loginBtnY, buttonWidth, 60, '🔐 Entrar', {
-      bgColor: COLORS.primary.purple,
-      hoverColor: COLORS.primary.purpleDark
+      bgColor: COLORS.primary.forest,
+      hoverColor: COLORS.primary.forestDark
     });
     this.buttons.set('login', {
       x: buttonX,
@@ -982,8 +982,8 @@ export class AuthUI {
     // Register button
     const registerBtnY = panelY + 480;
     drawButton(this.ctx, buttonX, registerBtnY, buttonWidth, 60, '✨ Criar Conta', {
-      bgColor: COLORS.primary.green,
-      hoverColor: '#2d8659'
+      bgColor: COLORS.primary.grove,
+      hoverColor: COLORS.primary.forest
     });
     this.buttons.set('register', {
       x: buttonX,

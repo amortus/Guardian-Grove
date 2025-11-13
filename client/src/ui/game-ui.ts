@@ -9,7 +9,7 @@ import { drawPanel, drawText, drawBar, drawButton, isMouseOver } from './ui-help
 import { getLifePhase, calculateBeastAge } from '../systems/beast';
 import { getBeastLineData } from '../data/beasts';
 import { BeastMiniViewer3D } from '../3d/BeastMiniViewer3D';
-import { RanchScene3D } from '../3d/scenes/RanchScene3D';
+import { GuardianHubScene3D } from '../3d/scenes/GuardianHubScene3D';
 import { canStartAction, getActionProgress, getActionName as getRealtimeActionName } from '../systems/realtime-actions';
 import { formatTime } from '../utils/time-format';
 import { getGameTime } from '../utils/day-night';
@@ -47,7 +47,7 @@ export class GameUI {
   private is3DViewerVisible: boolean = true; // ← Flag para controlar visibilidade
   
   // 3D Ranch Scene (full PS1 environment)
-  private ranchScene3D: RanchScene3D | null = null;
+  private ranchScene3D: GuardianHubScene3D | null = null;
   private ranchScene3DContainer: HTMLDivElement | null = null;
   private useFullRanchScene: boolean = true; // Toggle to use full ranch vs mini viewer
   private lastRealRanchSceneWidth: number = 0; // Cache do tamanho REAL (escalado) para detectar mudança
@@ -161,7 +161,7 @@ export class GameUI {
       document.body.appendChild(this.ranchScene3DContainer);
       
       // Create Ranch Scene 3D
-      this.ranchScene3D = new RanchScene3D(canvas);
+      this.ranchScene3D = new GuardianHubScene3D(canvas);
       this.ranchScene3D.setBeast(beast.line);
       this.ranchScene3D.startLoop();
       

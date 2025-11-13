@@ -31,6 +31,7 @@ import { Village3DUI } from './ui/village-3d-ui';
 import { ChatUI } from './ui/chat-ui';
 import { OptionsMenuUI } from './ui/options-menu-ui';
 import { registerMessageHandler } from './ui/message-service';
+import { COLORS } from './ui/colors';
 import { createNewGame, saveGame, loadGame, advanceGameWeek, addMoney } from './systems/game-state';
 import { advanceWeek } from './systems/calendar';
 import { isBeastAlive, calculateBeastAge, recalculateDerivedStats } from './systems/beast';
@@ -75,6 +76,15 @@ import {
 } from './systems/game-events';
 import { VILLAGE_BLUEPRINT } from './data/village-layout';
 import type { VillageBuildingConfig } from './types/village';
+
+function applyGuardianTheme() {
+  const body = document.body;
+  body.style.background = 'radial-gradient(circle at top, #1f4b2f 0%, #123522 45%, #0a1b13 100%)';
+  body.style.color = COLORS.ui.text;
+  body.style.fontFamily = `'Nunito', 'Nunito Sans', 'Segoe UI', sans-serif`;
+}
+
+applyGuardianTheme();
 
 // Elements
 const canvas = document.getElementById('game') as HTMLCanvasElement;
