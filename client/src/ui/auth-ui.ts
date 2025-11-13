@@ -18,6 +18,8 @@ export class AuthUI {
   private ctx: CanvasRenderingContext2D;
   private currentScreen: AuthScreen = 'welcome';
   private buttons: Map<string, { x: number; y: number; width: number; height: number; action: () => void }> = new Map();
+  private logoImage: HTMLImageElement | null = null;
+  private logoLoaded = false;
   
   // HTML Inputs Container
   private inputsContainer: HTMLDivElement;
@@ -96,6 +98,14 @@ export class AuthUI {
     this.canvas.style.zIndex = '99';
     
     this.setupEventListeners();
+
+    // Pré-carregar logo do Guardian Grove
+    this.logoImage = new Image();
+    this.logoImage.src = '/assets/branding/guardian-grove-logo.svg';
+    this.logoImage.onload = () => {
+      this.logoLoaded = true;
+      this.draw(true);
+    };
     this.calculateScale();
     
     // CORREÇÃO: Guardar referência do handler de resize para poder remover depois
@@ -890,28 +900,37 @@ export class AuthUI {
     });
     this.ctx.shadowBlur = 0;
 
-    // Title (larger)
-    drawText(this.ctx, '🐉 GUARDIAN GROVE', panelX + panelWidth / 2, panelY + 90, {
-      font: 'bold 48px monospace',
-      color: COLORS.primary.gold,
-      align: 'center'
-    });
+    // Logo ou fallback em texto
+    const logoMaxWidth = isMobile ? 320 : 360;
+    const logoHeight = isMobile ? 160 : 180;
+    const logoX = panelX + (panelWidth - logoMaxWidth) / 2;
+    const logoY = panelY + 60;
+
+    if (this.logoLoaded && this.logoImage) {
+      this.ctx.drawImage(this.logoImage, logoX, logoY, logoMaxWidth, logoHeight);
+    } else {
+      drawText(this.ctx, 'Guardian Grove', panelX + panelWidth / 2, panelY + 120, {
+        font: 'bold 48px monospace',
+        color: COLORS.primary.gold,
+        align: 'center'
+      });
+    }
 
     // Subtitle
-    drawText(this.ctx, 'Bem-vindo ao mundo de Aurath', panelX + panelWidth / 2, panelY + 150, {
-      font: 'bold 22px monospace',
+    drawText(this.ctx, 'Coopere, aprenda e proteja o santuário dos guardiões.', panelX + panelWidth / 2, panelY + 260, {
+      font: 'bold 20px monospace',
       color: COLORS.ui.text,
       align: 'center'
     });
 
     // Description
     const descriptions = [
-      'Crie, treine e batalhe com criaturas místicas.',
-      'Explore zonas perigosas, participe de torneios,',
-      'e prove seu valor como Guardião!'
+      'Resolva desafios colaborativos para restaurar a floresta.',
+      'Descubra técnicas, compartilhe conhecimento e evolua em grupo.',
+      'Cada partida é uma nova lição para os guardiões de Aurath!'
     ];
     descriptions.forEach((desc, i) => {
-      drawText(this.ctx, desc, panelX + panelWidth / 2, panelY + 200 + i * 25, {
+      drawText(this.ctx, desc, panelX + panelWidth / 2, panelY + 310 + i * 25, {
         font: '16px monospace',
         color: COLORS.ui.textDim,
         align: 'center'
@@ -922,8 +941,8 @@ export class AuthUI {
     this.ctx.strokeStyle = COLORS.primary.gold;
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
-    this.ctx.moveTo(panelX + 150, panelY + 300);
-    this.ctx.lineTo(panelX + panelWidth - 150, panelY + 300);
+    this.ctx.moveTo(panelX + 150, panelY + 360);
+    this.ctx.lineTo(panelX + panelWidth - 150, panelY + 360);
     this.ctx.stroke();
 
     // CORREÇÃO: Ajustar tamanho dos botões para não ultrapassar o painel
@@ -934,7 +953,7 @@ export class AuthUI {
     const buttonX = panelX + buttonPadding;
 
     // Login button
-    const loginBtnY = panelY + 340;
+    const loginBtnY = panelY + 400;
     drawButton(this.ctx, buttonX, loginBtnY, buttonWidth, 60, '🔐 Entrar', {
       bgColor: COLORS.primary.purple,
       hoverColor: COLORS.primary.purpleDark
@@ -961,7 +980,7 @@ export class AuthUI {
     });
 
     // Register button
-    const registerBtnY = panelY + 420;
+    const registerBtnY = panelY + 480;
     drawButton(this.ctx, buttonX, registerBtnY, buttonWidth, 60, '✨ Criar Conta', {
       bgColor: COLORS.primary.green,
       hoverColor: '#2d8659'
@@ -988,7 +1007,7 @@ export class AuthUI {
     });
 
     // Google button - usar mesmo tamanho dos outros botões
-    const googleBtnY = panelY + 520;
+    const googleBtnY = panelY + 580;
     drawButton(this.ctx, buttonX, googleBtnY, buttonWidth, 60, '🔗 Entrar com Google', {
       bgColor: '#4285f4',
       hoverColor: '#357ae8'
@@ -1004,7 +1023,7 @@ export class AuthUI {
     });
 
     // Note
-    drawText(this.ctx, '(Google OAuth não configurado)', panelX + panelWidth / 2, panelY + 595, {
+    drawText(this.ctx, '(Google OAuth não configurado)', panelX + panelWidth / 2, panelY + 655, {
       font: '12px monospace',
       color: COLORS.ui.textDim,
       align: 'center'

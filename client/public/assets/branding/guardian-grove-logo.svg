@@ -1,0 +1,46 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b7d34"/>
+      <stop offset="100%" stop-color="#184a22"/>
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5ffb5"/>
+      <stop offset="100%" stop-color="#beeb51"/>
+    </linearGradient>
+    <linearGradient id="leafGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8fe37a"/>
+      <stop offset="100%" stop-color="#2f8a40"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0d2412" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="48" fill="url(#bgGradient)"/>
+
+  <!-- Outer glow -->
+  <rect x="28" y="28" width="456" height="456" rx="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+
+  <!-- Leaves -->
+  <g filter="url(#shadow)">
+    <path d="M256 106 C305 78 352 82 382 118 C348 136 309 150 256 150 C203 150 164 136 130 118 C160 82 207 78 256 106Z" fill="url(#leafGradient)"/>
+    <path d="M256 392 C301 414 332 444 348 480 C318 482 284 474 256 452 C228 474 194 482 164 480 C180 444 211 414 256 392Z" fill="url(#leafGradient)"/>
+    <path d="M158 190 C200 182 218 206 224 238 C198 244 170 238 144 222 C136 210 144 194 158 190Z" fill="url(#leafGradient)"/>
+    <path d="M354 190 C368 194 376 210 368 222 C342 238 314 244 288 238 C294 206 312 182 354 190Z" fill="url(#leafGradient)"/>
+  </g>
+
+  <!-- Text -->
+  <g filter="url(#shadow)">
+    <text x="256" y="250" text-anchor="middle" font-family="Montserrat, 'Segoe UI', sans-serif" font-size="96" font-weight="700" fill="url(#textGradient)" stroke="#1c3a1a" stroke-width="6" paint-order="stroke">
+      GUARDIAN
+    </text>
+    <text x="256" y="350" text-anchor="middle" font-family="Montserrat, 'Segoe UI', sans-serif" font-size="96" font-weight="700" fill="url(#textGradient)" stroke="#1c3a1a" stroke-width="6" paint-order="stroke">
+      GROVE
+    </text>
+  </g>
+
+  <!-- Inner highlight -->
+  <ellipse cx="256" cy="380" rx="180" ry="34" fill="rgba(255,255,255,0.05)"/>
+</svg>
+
