@@ -422,8 +422,11 @@ export interface GameState {
   lastSync?: number;        // timestamp da última sincronização
   
   guardian: Guardian;
+  currentWeek?: number;
+  year?: number;
   ranch: Ranch;
   activeBeast: Beast | null;
+  needsAvatarSelection: boolean;
   economy: Economy;
   inventory: Item[];
   npcs: NPC[];

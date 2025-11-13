@@ -11,15 +11,26 @@ import { ACHIEVEMENTS } from './achievements';
 /**
  * Cria um novo estado de jogo
  */
+export const STARTER_CONFIG: Array<{ line: BeastLine; name: string }> = [
+  { line: 'feralis', name: 'Feralis' },
+  { line: 'mirella', name: 'Mirella' },
+  { line: 'olgrim', name: 'Olgrim' },
+  { line: 'raukor', name: 'Raukor' },
+  { line: 'sylphid', name: 'Sylphid' },
+  { line: 'ignar', name: 'Ignar' },
+  { line: 'terravox', name: 'Terravox' },
+];
+
 export function createNewGame(playerName: string): GameState {
-  // Cria primeira besta (Brontis - boa para iniciantes)
-  const firstBeast = createBeast('brontis', 'Início', 0);
+  const defaultStarter = STARTER_CONFIG[0];
+  const firstBeast = createBeast(defaultStarter.line, defaultStarter.name, 0);
 
   const gameState: GameState = {
     // Sistema de tempo real
     serverTime: Date.now(),
     lastSync: Date.now(),
-    
+    currentWeek: 1,
+    year: 1,
     guardian: {
       name: playerName,
       level: 1,
@@ -40,6 +51,7 @@ export function createNewGame(playerName: string): GameState {
     },
     
     activeBeast: firstBeast,
+    needsAvatarSelection: true,
     
     economy: {
       coronas: 500,
@@ -61,7 +73,7 @@ export function createNewGame(playerName: string): GameState {
     // NOVO: Sistema de Dungeons
     dungeonProgress: {},
     
-    unlockedLines: ['brontis', 'mirella', 'feralis'], // 3 linhas iniciais
+    unlockedLines: STARTER_CONFIG.map((config) => config.line),
     unlockedFeatures: [],
     discoveredRelics: [],
     deceasedBeasts: [],

@@ -189,6 +189,7 @@ export class GuardianHubScene3D {
     this.createMissionBoard();
     this.createBridge();
     this.createNatureProps();
+    this.createLightingProps();
     this.createAmbientParticles();
     this.setupObstacles();
   }
@@ -397,35 +398,33 @@ export class GuardianHubScene3D {
   }
 
   private createMissionBoard() {
-    const group = new THREE.Group();
-    group.position.set(-6.6, WORLD_Y_OFFSET + 0.02, -0.6);
-    group.rotation.y = Math.PI * 0.32;
+    const position: Vec3 = [-6.6, WORLD_Y_OFFSET + 0.02, -0.6];
+    this.loadStaticModel('/assets/3d/Village/Mission.glb', {
+      position,
+      rotationY: Math.PI * 0.32,
+      targetHeight: 2.9,
+      scaleMultiplier: 1,
+      name: 'guardian-mission-board',
+      onLoaded: (group) => {
+        group.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.material = child.material.clone();
+            if ('roughness' in child.material) {
+              (child.material as THREE.MeshStandardMaterial).roughness = 0.58;
+            }
+            if ('metalness' in child.material) {
+              (child.material as THREE.MeshStandardMaterial).metalness = 0.05;
+            }
+          }
+        });
+        const boardLight = new THREE.PointLight(0xfff0b0, 0.95, 6.5, 2.1);
+        boardLight.position.set(-0.15, 2.15, 0.35);
+        group.add(boardLight);
 
-    const postMaterial = new THREE.MeshStandardMaterial({ color: 0x6c4828, roughness: 0.82 });
-    const plankMaterial = new THREE.MeshStandardMaterial({ color: 0xf6d6a6, roughness: 0.6 });
-
-    const postGeometry = new THREE.BoxGeometry(0.2, 2.2, 0.2);
-    const leftPost = new THREE.Mesh(postGeometry, postMaterial);
-    leftPost.position.set(-0.9, 1.1, 0);
-    const rightPost = leftPost.clone();
-    rightPost.position.x = 0.9;
-    group.add(leftPost);
-    group.add(rightPost);
-
-    const boardGeometry = new THREE.BoxGeometry(2.4, 1.6, 0.1);
-    const board = new THREE.Mesh(boardGeometry, plankMaterial);
-    board.position.set(0, 1.7, 0);
-    group.add(board);
-
-    const headerGeometry = new THREE.BoxGeometry(2.6, 0.25, 0.2);
-    const header = new THREE.Mesh(headerGeometry, postMaterial);
-    header.position.set(0, 2.4, 0);
-    group.add(header);
-
-    this.addDecoration(group);
-
+        this.registerInteractable('mission_board', group, new THREE.Vector3(-5.6, 0, -1.2));
+      },
+    });
     this.obstacles.push({ position: [-6.6, -0.6], radius: 1.2 });
-    this.registerInteractable('mission_board', group, new THREE.Vector3(-5.6, 0, -1.2));
   }
 
   private createBridge() {
@@ -513,6 +512,48 @@ export class GuardianHubScene3D {
       });
       this.obstacles.push({ position: [pos[0], pos[2]], radius: 1.2 });
     });
+  }
+
+  private createLightingProps() {
+    if (!this.decorationsRoot) {
+      return;
+    }
+
+    const addLight = (
+      position: THREE.Vector3,
+      color: number,
+      intensity: number,
+      distance: number,
+      decay = 2,
+    ) => {
+      const light = new THREE.PointLight(color, intensity, distance, decay);
+      light.position.copy(position);
+      light.castShadow = false;
+      this.decorationsRoot?.add(light);
+      return light;
+    };
+
+    addLight(new THREE.Vector3(-5.2, WORLD_Y_OFFSET + 2.6, -2.4), 0xffdc9a, 0.7, 7);
+    addLight(new THREE.Vector3(5.0, WORLD_Y_OFFSET + 2.3, 3.6), 0x7ad8ff, 0.6, 6.5, 2.4);
+    addLight(new THREE.Vector3(2.8, WORLD_Y_OFFSET + 2.8, 3.0), 0xffdeb5, 0.55, 7.5, 2.2);
+    addLight(new THREE.Vector3(4.4, WORLD_Y_OFFSET + 3.2, 0.9), 0xcde8ff, 0.45, 8.5, 2.4);
+
+    const fireflyMaterial = new THREE.MeshBasicMaterial({ color: 0xfcefb4 });
+    const fireflyGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+    const addFirefly = (x: number, y: number, z: number, intensity = 0.45) => {
+      const mesh = new THREE.Mesh(fireflyGeometry, fireflyMaterial);
+      mesh.position.set(x, y, z);
+      this.decorationsRoot?.add(mesh);
+
+      const light = new THREE.PointLight(0xfff5c0, intensity, 3.2, 2.6);
+      light.position.copy(mesh.position);
+      light.castShadow = false;
+      this.decorationsRoot?.add(light);
+    };
+
+    addFirefly(-3.2, WORLD_Y_OFFSET + 2.4, -1.8);
+    addFirefly(0.6, WORLD_Y_OFFSET + 2.1, -0.4, 0.35);
+    addFirefly(3.4, WORLD_Y_OFFSET + 2.6, 1.4, 0.4);
   }
 
   private createAmbientParticles() {

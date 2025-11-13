@@ -2,7 +2,7 @@
  * UI Principal do Guardian Grove
  */
 
-import type { GameState, Beast, WeeklyAction, BeastAction } from '../types';
+import type { GameState, Beast, BeastLine, WeeklyAction, BeastAction } from '../types';
 import { COLORS } from './colors';
 import { GLASS_THEME } from './theme';
 import { drawPanel, drawText, drawBar, drawButton, isMouseOver } from './ui-helper';
@@ -11,13 +11,14 @@ import { getBeastLineData } from '../data/beasts';
 import { BeastMiniViewer3D } from '../3d/BeastMiniViewer3D';
 import { GuardianHubScene3D } from '../3d/scenes/GuardianHubScene3D';
 import { canStartAction, getActionProgress, getActionName as getRealtimeActionName } from '../systems/realtime-actions';
+import { STARTER_CONFIG } from '../systems/game-state';
 import { formatTime } from '../utils/time-format';
 import { getGameTime } from '../utils/day-night';
 
 const HEADER_HEIGHT = 130; // Aumentado para acomodar data do calendário
-const SIDE_PANEL_WIDTH = 510;
-const STATUS_PANEL_HEIGHT = 430;
-const SIDE_PANEL_GAP = 12;
+const SIDE_PANEL_WIDTH = 0; // Painéis laterais removidos na nova HUD diegética
+const STATUS_PANEL_HEIGHT = 0;
+const SIDE_PANEL_GAP = 0;
 
 export class GameUI {
   private canvas: HTMLCanvasElement;
@@ -35,7 +36,7 @@ export class GameUI {
   // UI state
   private selectedAction: WeeklyAction | null = null;
   private actionCategory: 'train' | 'work' | 'rest' | 'tournament' | null = null;
-  private activeMenuItem: string = 'ranch';
+  private activeMenuItem: string = 'guardian_village';
   
   // Button positions
   private buttons: Map<string, { x: number; y: number; width: number; height: number; action?: () => void }> = new Map();
@@ -62,6 +63,7 @@ export class GameUI {
     tavern: { label: 'a Arena PVP', action: () => { this.activeMenuItem = 'arena'; this.onOpenArenaPvp(); } },
     temple: { label: 'o Templo', action: () => { this.activeMenuItem = 'temple'; this.onOpenTemple(); } },
   };
+  private readonly starterLines: BeastLine[] = STARTER_CONFIG.map((config) => config.line);
   
   // Public callbacks
   public onView3D: () => void = () => {};
@@ -185,6 +187,9 @@ export class GameUI {
       
       document.body.appendChild(this.ranchScene3DContainer);
       this.ensureHubHoverLabel();
+      if (this.gameState.needsAvatarSelection) {
+        this.ranchScene3DContainer.style.pointerEvents = 'none';
+      }
 
       const getRect = () => this.ranchScene3DContainer!.getBoundingClientRect();
       const onPointerMove = (event: PointerEvent) => {
@@ -241,6 +246,7 @@ export class GameUI {
       this.ranchScene3DContainer.style.top = `${realTop}px`;
       this.ranchScene3DContainer.style.width = `${realWidth}px`;
       this.ranchScene3DContainer.style.height = `${realHeight}px`;
+      this.ranchScene3DContainer.style.pointerEvents = this.gameState.needsAvatarSelection ? 'none' : 'auto';
     }
   }
 
@@ -444,16 +450,18 @@ export class GameUI {
     // Clear canvas (transparente para mostrar 3D)
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    if (!this.gameState.activeBeast) {
-      this.drawNoBeastScreen();
-      return;
-    }
-
     // Draw sections
     this.drawHeader();
     this.drawBeastDisplay();
-    this.drawStatusPanel();
-    this.drawActionMenu();
+
+    if (!this.gameState.activeBeast) {
+      this.drawNoBeastScreen();
+    }
+
+    if (this.gameState.needsAvatarSelection) {
+      this.drawAvatarSelectionOverlay();
+    }
+
     // Week Info removido - exploração vai para o header
   }
 
@@ -552,8 +560,16 @@ export class GameUI {
   }
 
   private drawGlobalMenu() {
+    if (this.gameState.needsAvatarSelection) {
+      return;
+    }
+
+    if (this.activeMenuItem === 'ranch') {
+      this.activeMenuItem = 'guardian_village';
+    }
+
     const menuItems = [
-      { id: 'ranch', label: '🏠 Rancho', action: () => this.onNavigate('ranch') },
+      { id: 'guardian_village', label: '🏡 Guardian Village', action: () => this.onNavigate('ranch') },
       { id: 'village', label: '🏘️ Vila', action: () => this.onOpenVillage() },
       { id: 'inventory', label: '🎒 Inventário', action: () => this.onOpenInventory() },
       { id: 'arena', label: '🥊 Arena PVP', action: () => this.onOpenArenaPvp() },
@@ -592,22 +608,21 @@ export class GameUI {
   }
 
   private drawBeastDisplay() {
-    const beast = this.gameState.activeBeast!;
-    
-    // === 3D Ranch: preenche TODO o espaço disponível ===
+    const beast = this.gameState.activeBeast;
     const scene3DX = 0;
-    const scene3DY = HEADER_HEIGHT; // Começa LOGO APÓS o header
-    const scene3DWidth = this.canvas.width - SIDE_PANEL_WIDTH; // Até os painéis direitos
-    const scene3DHeight = this.canvas.height - HEADER_HEIGHT; // ATÉ O FUNDO (sem Week Info)
-    
-    // Criar/atualizar Ranch Scene 3D como background
-    if (this.is3DViewerVisible && this.useFullRanchScene) {
-      this.createOrUpdateRanchScene3D(scene3DX, scene3DY, scene3DWidth, scene3DHeight, beast);
-    }
-    
-    // SEM painel flutuante - info vai para o painel STATUS (direita)
+    const scene3DY = HEADER_HEIGHT;
+    const scene3DWidth = this.canvas.width;
+    const scene3DHeight = Math.max(0, this.canvas.height - HEADER_HEIGHT);
 
-    // Info da besta vai para o painel STATUS (não mais flutuante)
+    if (beast && this.is3DViewerVisible && this.useFullRanchScene) {
+      this.createOrUpdateRanchScene3D(scene3DX, scene3DY, scene3DWidth, scene3DHeight, beast);
+    } else {
+      this.drawHubFallback(scene3DX, scene3DY, scene3DWidth, scene3DHeight);
+    }
+
+    if (this.completionMessage) {
+      this.drawFloatingMessage(scene3DX + 24, scene3DY + 24, this.completionMessage);
+    }
   }
 
   private drawBeastSprite(x: number, y: number, width: number, height: number, beast: Beast) {
@@ -736,6 +751,50 @@ export class GameUI {
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(x + 30, y + 30, 15, 15);
     this.ctx.fillRect(x + width - 45, y + 30, 15, 15);
+  }
+
+  private drawHubFallback(x: number, y: number, width: number, height: number) {
+    if (height <= 0) {
+      return;
+    }
+
+    const gradient = this.ctx.createLinearGradient(x, y, x, y + height);
+    gradient.addColorStop(0, 'rgba(10, 27, 19, 0.95)');
+    gradient.addColorStop(0.5, 'rgba(12, 40, 26, 0.85)');
+    gradient.addColorStop(1, 'rgba(5, 14, 10, 0.95)');
+
+    this.ctx.save();
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(x, y, width, height);
+    this.ctx.restore();
+  }
+
+  private drawFloatingMessage(x: number, y: number, message: string) {
+    this.ctx.save();
+    this.ctx.font = 'bold 16px monospace';
+    const textWidth = this.ctx.measureText(message).width;
+    const paddingX = 16;
+    const paddingY = 12;
+    const boxWidth = textWidth + paddingX * 2;
+    const boxHeight = 40;
+
+    this.ctx.fillStyle = 'rgba(10, 27, 19, 0.86)';
+    this.ctx.strokeStyle = 'rgba(244, 202, 100, 0.6)';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.drawRoundedRectPath(x, y, boxWidth, boxHeight, 12);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    drawText(this.ctx, message, x + boxWidth / 2, y + boxHeight / 2, {
+      align: 'center',
+      baseline: 'middle',
+      font: 'bold 16px monospace',
+      color: '#F7FAFF',
+      shadow: false,
+    });
+
+    this.ctx.restore();
   }
 
   private drawStatusPanel() {
@@ -1256,11 +1315,126 @@ export class GameUI {
   }
 
   private drawNoBeastScreen() {
-    drawText(this.ctx, 'Nenhuma besta ativa!', this.canvas.width / 2, this.canvas.height / 2, {
+    drawText(this.ctx, 'Selecione um guardião para entrar no Grove.', this.canvas.width / 2, HEADER_HEIGHT + 80, {
       align: 'center',
-      font: 'bold 24px monospace',
-      color: GLASS_THEME.palette.accent.danger,
+      font: 'bold 20px monospace',
+      color: GLASS_THEME.palette.accent.cyan,
     });
+  }
+
+  private drawAvatarSelectionOverlay() {
+    const overlayTop = HEADER_HEIGHT;
+    const overlayHeight = Math.max(0, this.canvas.height - HEADER_HEIGHT);
+
+    this.ctx.save();
+    this.ctx.fillStyle = 'rgba(6, 18, 12, 0.82)';
+    this.ctx.fillRect(0, overlayTop, this.canvas.width, overlayHeight);
+    this.ctx.restore();
+
+    drawText(this.ctx, 'Guardian Grove - Escolha seu Guardião', this.canvas.width / 2, overlayTop + 24, {
+      align: 'center',
+      font: 'bold 26px monospace',
+      color: COLORS.ui.text,
+    });
+
+    drawText(this.ctx, 'Selecione um avatar inicial. Você poderá adotar outras criaturas depois no Templo.', this.canvas.width / 2, overlayTop + 60, {
+      align: 'center',
+      font: '15px monospace',
+      color: COLORS.ui.textDim,
+    });
+
+    const columns = 3;
+    const cardWidth = 240;
+    const cardHeight = 190;
+    const gapX = 28;
+    const gapY = 24;
+    const cardsStartY = overlayTop + 96;
+    const totalRows = Math.ceil(this.starterLines.length / columns);
+
+    let hoveredAny = false;
+
+    this.starterLines.forEach((line, index) => {
+      const row = Math.floor(index / columns);
+      const indexInRow = index - row * columns;
+      const remaining = this.starterLines.length - row * columns;
+      const itemsInRow = row === totalRows - 1 ? Math.max(1, remaining) : columns;
+      if (indexInRow >= itemsInRow) {
+        return;
+      }
+
+      const rowWidth = itemsInRow * cardWidth + (itemsInRow - 1) * gapX;
+      const rowStartX = (this.canvas.width - rowWidth) / 2;
+      const cardX = rowStartX + indexInRow * (cardWidth + gapX);
+      const cardY = cardsStartY + row * (cardHeight + gapY);
+
+      const isHovered = isMouseOver(this.mouseX, this.mouseY, cardX, cardY, cardWidth, cardHeight);
+      if (isHovered) {
+        hoveredAny = true;
+      }
+
+      drawPanel(this.ctx, cardX, cardY, cardWidth, cardHeight, {
+        variant: 'popup',
+        highlightIntensity: isHovered ? 0.85 : 0.4,
+        alpha: 0.94,
+        borderWidth: isHovered ? 2.6 : 1.6,
+        borderColor: isHovered ? 'rgba(244, 202, 100, 0.85)' : 'rgba(104, 160, 132, 0.55)',
+        shadow: isHovered ? undefined : { color: 'rgba(0, 0, 0, 0.28)', blur: 18, offsetY: 12 },
+      });
+
+      const data = getBeastLineData(line);
+
+      drawText(this.ctx, data.name, cardX + cardWidth / 2, cardY + 18, {
+        align: 'center',
+        font: 'bold 17px monospace',
+        color: COLORS.ui.text,
+      });
+
+      drawText(this.ctx, `Afinidade: ${data.affinity.join(' / ').toUpperCase()}`, cardX + 18, cardY + 52, {
+        font: '13px monospace',
+        color: COLORS.ui.textDim,
+      });
+
+      drawText(this.ctx, `Personalidade: ${data.personality}`, cardX + 18, cardY + 74, {
+        font: '13px monospace',
+        color: COLORS.ui.textDim,
+      });
+
+      drawText(this.ctx, `Pontos fortes: ${data.strengths}`, cardX + 18, cardY + 104, {
+        font: '12px monospace',
+        color: COLORS.ui.text,
+      });
+
+      drawText(this.ctx, `Cuidado: ${data.weaknesses}`, cardX + 18, cardY + 132, {
+        font: '12px monospace',
+        color: COLORS.ui.textDim,
+      });
+
+      drawButton(this.ctx, cardX + 18, cardY + cardHeight - 52, cardWidth - 36, 40, 'Escolher Guardião', {
+        bgColor: isHovered ? COLORS.primary.grove : COLORS.primary.forest,
+        hoverColor: COLORS.primary.sky,
+        textColor: '#0b1b12',
+        flat: true,
+      });
+
+      this.buttons.set(`avatar-${line}`, {
+        x: cardX,
+        y: cardY,
+        width: cardWidth,
+        height: cardHeight,
+        action: () => this.handleAvatarSelection(line),
+      });
+    });
+
+    if (hoveredAny) {
+      document.body.style.cursor = 'pointer';
+    } else if (!this.currentHubHoverId) {
+      document.body.style.cursor = '';
+    }
+  }
+
+  private handleAvatarSelection(line: BeastLine) {
+    document.body.style.cursor = '';
+    this.onSelectAvatar(line);
   }
   
   /**
@@ -1298,6 +1472,7 @@ export class GameUI {
   public onNavigate: (screen: string) => void = () => {};
   public onOpenSettings: () => void = () => {};
   public onLogout: () => void = () => {};
+  public onSelectAvatar: (line: BeastLine) => void = () => {};
 
   public updateGameState(gameState: GameState) {
     this.gameState = gameState;

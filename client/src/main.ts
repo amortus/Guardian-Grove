@@ -34,7 +34,7 @@ import { registerMessageHandler } from './ui/message-service';
 import { COLORS } from './ui/colors';
 import { createNewGame, saveGame, loadGame, advanceGameWeek, addMoney } from './systems/game-state';
 import { advanceWeek } from './systems/calendar';
-import { isBeastAlive, calculateBeastAge, recalculateDerivedStats } from './systems/beast';
+import { isBeastAlive, calculateBeastAge, recalculateDerivedStats, createBeast } from './systems/beast';
 import { 
   canStartAction,
   startAction,
@@ -53,6 +53,7 @@ import { NPCS, getNPCDialogue, increaseAffinity } from './data/npcs';
 import { processWeeklyEvents } from './systems/events';
 import { useItem } from './systems/inventory';
 import { calculateTournamentDrops } from './systems/drops';
+import { getBeastLineData } from './data/beasts';
 import { unlockQuests, getCompletedQuests } from './systems/quests';
 import { startExploration, advanceExploration, defeatEnemy, collectMaterials, endExploration } from './systems/exploration';
 import { executeCraft } from './systems/craft';
@@ -1081,6 +1082,12 @@ async function setupGame() {
       return;
     }
     
+    if ((gameState as any).needsAvatarSelection === undefined) {
+      gameState.needsAvatarSelection = !gameState.activeBeast;
+    }
+    gameState.currentWeek ??= 1;
+    gameState.year ??= 1;
+    
     console.log('[Game] Setting up game with:', gameState.guardian.name, 'and Beast:', gameState.activeBeast?.name);
 
     // Create UI
@@ -1175,6 +1182,36 @@ async function setupGame() {
     // Setup logout callback
     gameUI.onLogout = () => {
       handleLogout();
+    };
+    
+    gameUI.onSelectAvatar = async (line) => {
+      if (!gameState || !gameState.needsAvatarSelection) {
+        return;
+      }
+
+      try {
+        const lineData = getBeastLineData(line);
+        const displayName = lineData.name.split(' (')[0] ?? lineData.name;
+        const newBeast = createBeast(line, displayName, gameState.currentWeek ?? 1);
+
+        gameState.activeBeast = newBeast;
+        gameState.ranch.beasts = [newBeast];
+        gameState.needsAvatarSelection = false;
+
+        try {
+          await saveGame(gameState);
+        } catch (saveError) {
+          console.warn('[Avatar] Falha ao salvar seleção de guardião:', saveError);
+        }
+
+        gameUI?.updateGameState(gameState);
+        gameUI?.draw();
+
+        showMessage(`${displayName} agora caminha ao seu lado no Guardian Grove!`, '🌳 Guardião Escolhido');
+      } catch (error) {
+        console.error('[Avatar] Erro ao selecionar guardião:', error);
+        showMessage('Não foi possível criar o guardião. Tente novamente.', '⚠️ Erro');
+      }
     };
     
     // Setup action start callback (novo sistema de tempo real)
