@@ -283,9 +283,13 @@ export class GameUI {
     }
 
     if (this.hubHoverLabel) {
-      if (id && this.hubInteractions[id]) {
+      if (id && id !== 'walkable' && this.hubInteractions[id]) {
         this.hubHoverLabel.textContent = `Clique para acessar ${this.hubInteractions[id].label}`;
         this.hubHoverLabel.style.opacity = '1';
+        document.body.style.cursor = 'pointer';
+      } else if (id === 'walkable') {
+        this.hubHoverLabel.textContent = 'Clique para caminhar';
+        this.hubHoverLabel.style.opacity = '0.9';
         document.body.style.cursor = 'pointer';
       } else {
         this.hubHoverLabel.style.opacity = '0';

@@ -142,6 +142,7 @@ export class GuardianHubScene3D {
   private interactionCallback?: (id: string) => void;
   private hoverCallback?: (id: string | null) => void;
   private pendingInteraction: { id: string; target: THREE.Vector3 } | null = null;
+  private manualControl = false;
   private particlesSystem: THREE.Points | null = null;
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
@@ -173,6 +174,7 @@ export class GuardianHubScene3D {
     this.interactables = [];
     this.hoveredInteractable = null;
     this.pendingInteraction = null;
+    this.manualControl = false;
 
     this.decorationsRoot = new THREE.Group();
     this.decorationsRoot.position.y = WORLD_Y_OFFSET;
@@ -202,6 +204,7 @@ export class GuardianHubScene3D {
     this.interactables = [];
     this.hoveredInteractable = null;
     this.pendingInteraction = null;
+    this.manualControl = false;
 
     if (this.decorationsRoot) {
       this.disposeObject(this.decorationsRoot);
@@ -739,12 +742,20 @@ export class GuardianHubScene3D {
   }
 
   public handlePointerMove(clientX: number, clientY: number, rect: DOMRect): string | null {
-    const entry = this.pickInteractable(clientX, clientY, rect);
-    const hoveredId = entry?.id ?? null;
+    this.preparePointer(clientX, clientY, rect);
+    const entry = this.pickInteractable();
+    let hoveredId: string | null = entry?.id ?? null;
+
+    if (!hoveredId) {
+      const walkable = this.projectRayToWalkable();
+      if (walkable) {
+        hoveredId = 'walkable';
+      }
+    }
 
     if (hoveredId !== this.hoveredInteractable) {
       this.hoveredInteractable = hoveredId;
-      this.updateInteractableHighlight(hoveredId);
+      this.updateInteractableHighlight(hoveredId && hoveredId !== 'walkable' ? hoveredId : null);
       this.hoverCallback?.(hoveredId);
     }
 
@@ -752,19 +763,33 @@ export class GuardianHubScene3D {
   }
 
   public handlePointerClick(clientX: number, clientY: number, rect: DOMRect): string | null {
-    const entry = this.pickInteractable(clientX, clientY, rect);
-    if (!entry) {
+    this.preparePointer(clientX, clientY, rect);
+    const entry = this.pickInteractable();
+    if (entry) {
+      this.pendingInteraction = { id: entry.id, target: entry.target.clone() };
+      this.currentTarget = entry.target.clone();
+      this.isMoving = true;
+      this.manualControl = false;
+      this.playRigAnimation('walk');
+      this.updateInteractableHighlight(entry.id);
+      this.hoverCallback?.(entry.id);
+      return entry.id;
+    }
+
+    const target = this.projectRayToWalkable();
+    if (!target) {
       return null;
     }
 
-    this.pendingInteraction = { id: entry.id, target: entry.target.clone() };
-    this.currentTarget = entry.target.clone();
+    this.pendingInteraction = null;
+    this.manualControl = true;
+    this.currentTarget = target.clone();
     this.isMoving = true;
     this.playRigAnimation('walk');
-    this.updateInteractableHighlight(entry.id);
-    this.hoverCallback?.(entry.id);
+    this.updateInteractableHighlight(null);
+    this.hoverCallback?.('walkable');
 
-    return entry.id;
+    return 'move';
   }
 
   public clearHover() {
@@ -773,16 +798,10 @@ export class GuardianHubScene3D {
     this.hoverCallback?.(null);
   }
 
-  private pickInteractable(clientX: number, clientY: number, rect: DOMRect): InteractableEntry | null {
+  private pickInteractable(): InteractableEntry | null {
     if (!this.interactables.length) {
       return null;
     }
-
-    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-
-    const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
-    this.raycaster.setFromCamera(this.pointer, camera);
 
     const meshes = this.interactables.map((item) => item.mesh);
     const intersects = this.raycaster.intersectObjects(meshes, true);
@@ -810,6 +829,31 @@ export class GuardianHubScene3D {
     this.interactables.forEach((entry) => {
       entry.sprite.visible = entry.id === hoverId;
     });
+  }
+
+  private preparePointer(clientX: number, clientY: number, rect: DOMRect) {
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
+    this.raycaster.setFromCamera(this.pointer, camera);
+  }
+
+  private projectRayToWalkable(): THREE.Vector3 | null {
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -WORLD_Y_OFFSET);
+    const point = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectPlane(plane, point)) {
+      return null;
+    }
+
+    const x = point.x;
+    const z = point.z;
+
+    if (!this.isPositionValid(x, z, 0.45)) {
+      return null;
+    }
+
+    return new THREE.Vector3(x, 0, z);
   }
 
   public update(delta: number) {
@@ -844,6 +888,9 @@ export class GuardianHubScene3D {
       this.currentTarget = this.pendingInteraction.target.clone();
       this.isMoving = true;
       this.playRigAnimation('walk');
+    } else if (!this.isMoving && this.manualControl) {
+      // aguardando chegada ao ponto manual (deve ter sido tratado em clique)
+      this.manualControl = false;
     } else if (!this.isMoving && this.nextMoveTime <= 0) {
       const nextTarget = this.chooseNextTarget(this.beastGroup.position);
       if (nextTarget) {
@@ -869,8 +916,12 @@ export class GuardianHubScene3D {
         if (this.pendingInteraction && this.interactionCallback) {
           const id = this.pendingInteraction.id;
           this.pendingInteraction = null;
+          this.manualControl = false;
           this.interactionCallback(id);
           this.nextMoveTime = 2.0 + Math.random() * 1.2;
+        } else if (this.manualControl) {
+          this.manualControl = false;
+          this.nextMoveTime = 3.0 + Math.random();
         } else {
           this.nextMoveTime = 2.5 + Math.random() * 1.8;
         }
