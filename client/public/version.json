@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0-stable-2d-only",
+  "build": "main-Bk7g2-bk",
+  "timestamp": "2024-11-01T18:30:00Z",
+  "system": "2D Classic Battle System",
+  "features": [
+    "BattleUI 2D funcional",
+    "Sem sistema híbrido",
+    "Sem 3D arena",
+    "100% estável"
+  ]
+}
+

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="description" content="Crie, treine e batalhe com criaturas místicas no mundo de Aurath.">
+  <meta name="version" content="0.6.5">
+  <meta name="build-hash" content="Bk7g2-bk">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vanilla-game.vercel.app/">
+  <meta property="og:title" content="Beast Keepers">
+  <meta property="og:description" content="Crie, treine e batalhe com criaturas místicas no mundo de Aurath.">
+  <meta property="og:image" content="https://vanilla-game.vercel.app/og-image.png">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://vanilla-game.vercel.app/">
+  <meta property="twitter:title" content="Beast Keepers">
+  <meta property="twitter:description" content="Crie, treine e batalhe com criaturas místicas no mundo de Aurath.">
+  <meta property="twitter:image" content="https://vanilla-game.vercel.app/og-image.png">
+  
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <title>Beast Keepers</title>
+  <style>
+    /* ===== AUTH CLEANUP CSS (INLINE) ===== */
+    /* CORREÇÃO: Esconder APENAS quando usuário está autenticado */
+    /* Os inputs DEVEM aparecer na tela de login/cadastro! */
+    
+    /* ESTRATÉGIA: Esconder quando body tem classe authenticated */
+    body.authenticated #auth-inputs-container,
+    body.authenticated [id^="auth-inputs"],
+    body.authenticated [data-auth-container="true"],
+    body.authenticated input[data-field="email"],
+    body.authenticated input[data-field="password"],
+    body.authenticated input[data-field="displayName"],
+    body.authenticated input[data-field="confirmPassword"],
+    body.authenticated input[placeholder*="email"],
+    body.authenticated input[placeholder*="senha"],
+    body.authenticated input[placeholder*="nome"],
+    body.authenticated input[type="email"],
+    body.authenticated input[type="password"][placeholder*="senha"],
+    body.authenticated input[type="text"][placeholder*="email"],
+    body.authenticated input[type="text"][placeholder*="nome"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      position: absolute !important;
+      left: -9999px !important;
+      top: -9999px !important;
+      z-index: -9999 !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000; /* ✅ LETTERBOX: Fundo preto para barras */
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    #game {
+      display: block;
+      /* Previne scroll em mobile */
+      touch-action: none;
+      /* Suavizar renderização (PS1 smooth, não Minecraft) */
+      image-rendering: auto;
+      /* Posicionamento controlado por JS em resizeCanvas() */
+      position: fixed;
+    }
+
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: clamp(1rem, 4vw, 1.5rem);
+      text-align: center;
+      z-index: 1000;
+    }
+
+    #error {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ff4444;
+      font-size: clamp(0.8rem, 3vw, 1rem);
+      text-align: center;
+      padding: 2rem;
+      background: rgba(0,0,0,0.8);
+      border-radius: 8px;
+      max-width: 90%;
+      z-index: 1000;
+    }
+
+    /* Responsividade para telas muito pequenas */
+    @media (max-width: 480px) {
+      #loading {
+        font-size: 1rem;
+        padding: 1rem;
+      }
+      
+      #error {
+        font-size: 0.8rem;
+        padding: 1rem;
+        max-width: 95%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="800" height="700"></canvas>
+  <div id="loading">🎮 Carregando Beast Keepers...</div>
+  <div id="error"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+  
+  <noscript>
+    <div style="color: white; text-align: center; padding: 50px;">
+      Este jogo requer JavaScript habilitado para funcionar.
+    </div>
+  </noscript>
+</body>
+</html>
+

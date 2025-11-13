@@ -1,0 +1,9 @@
+{
+  "name": "guardian-grove-shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "types.ts",
+  "types": "types.ts",
+  "description": "Shared types between client and server"
+}
+

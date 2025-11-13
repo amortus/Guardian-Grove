@@ -1,0 +1,43 @@
+{
+  "name": "guardian-grove-client",
+  "version": "0.1.0",
+  "description": "Cuide, treine e coopere com guardiões místicos no santuário Guardian Grove.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "meshy:generate": "node tools/meshy-generate.js",
+    "render:models": "node tools/render-models.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"public/**/*.js\"",
+    "generate-assets": "node scripts/generate-assets.mjs",
+    "generate-assets-simple": "node scripts/generate-assets-simple.mjs",
+    "create-placeholders": "node scripts/create-placeholder-assets.mjs"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5"
+  },
+  "dependencies": {
+    "@types/howler": "^2.2.12",
+    "@types/three": "^0.180.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "form-data": "^4.0.4",
+    "howler": "^2.2.4",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.29.1",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.180.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "ws": "^8.16.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.28.1"
+  }
+}

@@ -1,0 +1,6 @@
+Version: 1.1.1-dungeons-fix
+Build Date: 2024-11-01 16:15
+Commit: d6cf120
+Features: Dungeons system with fatigue integration
+Expected File: main-cGmNderf.js or newer
+

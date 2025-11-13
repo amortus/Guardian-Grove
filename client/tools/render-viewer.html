@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Beast Keepers Render Viewer</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+      #loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-family: sans-serif;
+        letter-spacing: 0.08em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">Loading...</div>
+    <script type="module">
+      import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+      import { GLTFLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/GLTFLoader.js';
+
+      const params = new URLSearchParams(window.location.search);
+      const modelPath = params.get('model');
+      const angle = params.get('angle') ?? 'front';
+      const bgColor = params.get('bg') ?? '#101820';
+      const width = Number(params.get('w') ?? 1024);
+      const height = Number(params.get('h') ?? 1024);
+
+      if (!modelPath) {
+        throw new Error('Missing model parameter.');
+      }
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(bgColor);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
+      renderer.setSize(width, height);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      document.body.appendChild(renderer.domElement);
+
+      const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 100);
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x222244, 0.65);
+      scene.add(hemi);
+
+      const keyLight = new THREE.DirectionalLight(0xfff2e6, 1.1);
+      keyLight.position.set(5, 8, 6);
+      keyLight.castShadow = false;
+      scene.add(keyLight);
+
+      const rimLight = new THREE.DirectionalLight(0xb0c6ff, 0.7);
+      rimLight.position.set(-6, 4, -5);
+      scene.add(rimLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+      fillLight.position.set(-2, 6, 8);
+      scene.add(fillLight);
+
+      const loader = new GLTFLoader();
+
+      function fitCameraToObject(obj) {
+        const box = new THREE.Box3().setFromObject(obj);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        obj.position.x += obj.position.x - center.x;
+        obj.position.y += obj.position.y - (center.y - size.y * 0.5);
+        obj.position.z += obj.position.z - center.z;
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = (camera.fov * Math.PI) / 180;
+        let cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2));
+        cameraZ *= 1.4;
+        const targetY = size.y * 0.45;
+
+        switch (angle) {
+          case 'side':
+            camera.position.set(cameraZ, targetY, 0);
+            break;
+          case 'back':
+            camera.position.set(0, targetY, -cameraZ);
+            break;
+          case 'iso':
+            camera.position.set(cameraZ * 0.8, targetY * 1.2, cameraZ * 0.8);
+            break;
+          case 'top':
+            camera.position.set(0, cameraZ, 0.001);
+            break;
+          case 'front':
+          default:
+            camera.position.set(0, targetY, cameraZ);
+            break;
+        }
+
+        if (angle === 'top') {
+          camera.lookAt(0, 0, 0);
+        } else {
+          camera.lookAt(0, targetY, 0);
+        }
+      }
+
+      loader.load(
+        modelPath,
+        (gltf) => {
+          const model = gltf.scene;
+          model.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+
+          scene.add(model);
+          fitCameraToObject(model);
+
+          renderer.render(scene, camera);
+          const dataUrl = renderer.domElement.toDataURL('image/png');
+          document.getElementById('loading').style.display = 'none';
+
+          if (window.renderDone) {
+            window.renderDone(dataUrl);
+          }
+        },
+        undefined,
+        (error) => {
+          console.error('GLTF load error', error);
+          if (window.renderFailed) {
+            window.renderFailed(error.message ?? 'Unknown error');
+          }
+        },
+      );
+    </script>
+  </body>
+</html>
