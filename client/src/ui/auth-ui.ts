@@ -917,7 +917,7 @@ export class AuthUI {
     }
 
     // Subtitle
-    drawText(this.ctx, 'Coopere, aprenda e proteja o santuário dos guardiões.', panelX + panelWidth / 2, panelY + 260, {
+    drawText(this.ctx, 'Aventura Cooperativa de Guardiões', panelX + panelWidth / 2, panelY + 260, {
       font: 'bold 20px monospace',
       color: COLORS.ui.text,
       align: 'center'
@@ -925,9 +925,8 @@ export class AuthUI {
 
     // Description
     const descriptions = [
-      'Resolva desafios colaborativos para restaurar a floresta.',
-      'Descubra técnicas, compartilhe conhecimento e evolua em grupo.',
-      'Cada partida é uma nova lição para os guardiões de Aurath!'
+      'Crie e treine criaturas místicas em um santuário cooperativo.',
+      'Explore, complete missões e proteja o Grove com seus amigos!'
     ];
     descriptions.forEach((desc, i) => {
       drawText(this.ctx, desc, panelX + panelWidth / 2, panelY + 310 + i * 25, {
@@ -1004,29 +1003,6 @@ export class AuthUI {
         // CORREÇÃO: Forçar draw imediatamente para mudança de tela (sem debounce)
         this.draw(true);
       }
-    });
-
-    // Google button - usar mesmo tamanho dos outros botões
-    const googleBtnY = panelY + 580;
-    drawButton(this.ctx, buttonX, googleBtnY, buttonWidth, 60, '🔗 Entrar com Google', {
-      bgColor: '#4285f4',
-      hoverColor: '#357ae8'
-    });
-    this.buttons.set('google', {
-      x: buttonX,
-      y: googleBtnY,
-      width: buttonWidth,
-      height: 60,
-      action: () => {
-        authApi.googleLogin();
-      }
-    });
-
-    // Note
-    drawText(this.ctx, '(Google OAuth não configurado)', panelX + panelWidth / 2, panelY + 655, {
-      font: '12px monospace',
-      color: COLORS.ui.textDim,
-      align: 'center'
     });
   }
 
