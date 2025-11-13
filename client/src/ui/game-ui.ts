@@ -12,7 +12,6 @@ import { BeastMiniViewer3D } from '../3d/BeastMiniViewer3D';
 import { GuardianHubScene3D } from '../3d/scenes/GuardianHubScene3D';
 import { canStartAction, getActionProgress, getActionName as getRealtimeActionName } from '../systems/realtime-actions';
 import { STARTER_CONFIG } from '../systems/game-state';
-import { formatTime } from '../utils/time-format';
 import { getGameTime } from '../utils/day-night';
 
 const HEADER_HEIGHT = 130; // Aumentado para acomodar data do calendário
@@ -454,6 +453,14 @@ export class GameUI {
     this.drawHeader();
     this.drawBeastDisplay();
 
+    if (this.gameState.activeBeast && !this.gameState.needsAvatarSelection) {
+      this.drawBeastHudOverlay();
+    }
+
+    if (!this.gameState.needsAvatarSelection) {
+      this.drawInteractionHints();
+    }
+
     if (!this.gameState.activeBeast) {
       this.drawNoBeastScreen();
     }
@@ -466,30 +473,28 @@ export class GameUI {
   }
 
   private drawHeader() {
-    drawPanel(this.ctx, 0, 0, this.canvas.width, HEADER_HEIGHT, {
-      variant: 'header',
-      highlightIntensity: 0.9,
-      borderWidth: 1.5,
-    });
+    const gradient = this.ctx.createLinearGradient(0, 0, 0, HEADER_HEIGHT);
+    gradient.addColorStop(0, 'rgba(6, 22, 16, 0.92)');
+    gradient.addColorStop(1, 'rgba(6, 22, 16, 0.55)');
 
-    const buttonY = 20;
-    const logoutBtnWidth = 110;
-    const logoutBtnHeight = 32;
+    this.ctx.save();
+    this.ctx.fillStyle = gradient;
+    this.ctx.fillRect(0, 0, this.canvas.width, HEADER_HEIGHT);
+    this.ctx.restore();
+
+    // Linha inferior sutil
+    this.ctx.fillStyle = 'rgba(42, 119, 96, 0.35)';
+    this.ctx.fillRect(0, HEADER_HEIGHT - 2, this.canvas.width, 2);
+
+    const buttonY = 26;
+    const logoutBtnWidth = 104;
+    const logoutBtnHeight = 34;
     const logoutBtnX = this.canvas.width - logoutBtnWidth - 24;
-    const settingsBtnWidth = 46;
-    const settingsBtnHeight = 32;
-    const settingsBtnX = logoutBtnX - settingsBtnWidth - 12;
-
-    const moneyX = settingsBtnX - 18;
-    drawText(this.ctx, `💰 ${this.gameState.economy.coronas} Coronas`, moneyX, 30, {
-      font: 'bold 16px monospace',
-      color: GLASS_THEME.palette.accent.amber,
-      align: 'right',
-      shadow: false,
-    });
+    const settingsBtnSize = 40;
+    const settingsBtnX = logoutBtnX - settingsBtnSize - 14;
 
     const isLogoutHovered = isMouseOver(this.mouseX, this.mouseY, logoutBtnX, buttonY, logoutBtnWidth, logoutBtnHeight);
-    drawButton(this.ctx, logoutBtnX, buttonY, logoutBtnWidth, logoutBtnHeight, '🚪 Sair', {
+    drawButton(this.ctx, logoutBtnX, buttonY, logoutBtnWidth, logoutBtnHeight, 'Sair', {
       variant: 'danger',
       isHovered: isLogoutHovered,
       fontSize: 14,
@@ -503,107 +508,110 @@ export class GameUI {
       action: () => this.onLogout(),
     });
 
-    const isSettingsHovered = isMouseOver(this.mouseX, this.mouseY, settingsBtnX, buttonY, settingsBtnWidth, settingsBtnHeight);
-    drawButton(this.ctx, settingsBtnX, buttonY, settingsBtnWidth, settingsBtnHeight, '⚙️', {
+    const isSettingsHovered = isMouseOver(this.mouseX, this.mouseY, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize);
+    drawButton(this.ctx, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize, '⚙️', {
       variant: 'ghost',
       isHovered: isSettingsHovered,
-      fontSize: 18,
+      fontSize: 20,
     });
 
     this.buttons.set('settings', {
       x: settingsBtnX,
       y: buttonY,
-      width: settingsBtnWidth,
-      height: settingsBtnHeight,
+      width: settingsBtnSize,
+      height: settingsBtnSize,
       action: () => this.onOpenSettings(),
     });
 
-    // Relógio e calendário visual (lado esquerdo, no lugar do título)
+    const chipPaddingX = 18;
+    const chipPaddingY = 18;
+    const chipGap = 12;
+    const chipHeight = 36;
+
+    const drawChip = (rightX: number, icon: string, label: string) => {
+      this.ctx.font = 'bold 14px monospace';
+      const text = `${icon} ${label}`;
+      const textWidth = this.ctx.measureText(text).width;
+      const chipWidth = textWidth + chipPaddingX * 2;
+      const chipX = rightX - chipWidth;
+      const chipY = buttonY + settingsBtnSize + 10;
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 0.95;
+      this.ctx.fillStyle = 'rgba(12, 38, 25, 0.88)';
+      this.drawRoundedRectPath(chipX, chipY, chipWidth, chipHeight, 16);
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(109, 199, 164, 0.45)';
+      this.ctx.lineWidth = 1.4;
+      this.ctx.stroke();
+      this.ctx.restore();
+
+      drawText(this.ctx, text, chipX + chipWidth / 2, chipY + chipHeight / 2 + 1, {
+        align: 'center',
+        baseline: 'middle',
+        font: 'bold 14px monospace',
+        color: GLASS_THEME.palette.text.highlight,
+        shadow: false,
+      });
+
+      return chipX - chipGap;
+    };
+
+    let chipRightEdge = settingsBtnX - 16;
+    const beast = this.gameState.activeBeast;
+
+    if (beast) {
+      const lineData = getBeastLineData(beast.line);
+      chipRightEdge = drawChip(chipRightEdge, '🛡️', `${beast.name} • ${lineData.name}`);
+      chipRightEdge = drawChip(chipRightEdge, '💠', `Nível ${beast.level || 1}`);
+    }
+
+    chipRightEdge = drawChip(chipRightEdge, '💰', `${this.gameState.economy.coronas.toLocaleString('pt-BR')} coronas`);
+
     const gameTime = getGameTime();
     const clockIcon = gameTime.timeOfDay.isNight ? '🌙' : '☀️';
     const clockText = `${clockIcon} ${gameTime.timeOfDay.timeString}`;
-    const dateText = `📅 ${gameTime.calendar.dateString} - ${gameTime.calendar.dayOfWeekName}`;
+    const dateText = `${gameTime.calendar.dateString} • ${gameTime.calendar.dayOfWeekName}`;
     
-    const leftX = 24;
-    const clockY = 24;
+    const leftX = 32;
+    const clockY = 32;
     
     // Hora
     drawText(this.ctx, clockText, leftX, clockY, {
-      font: 'bold 16px monospace',
-      color: gameTime.timeOfDay.isNight ? GLASS_THEME.palette.accent.blue : GLASS_THEME.palette.accent.amber,
+      font: 'bold 18px monospace',
+      color: gameTime.timeOfDay.isNight ? '#9AD5FF' : GLASS_THEME.palette.accent.amber,
       shadow: false,
     });
     
     // Data (abaixo da hora)
-    drawText(this.ctx, dateText, leftX, clockY + 22, {
-      font: 'bold 13px monospace',
-      color: GLASS_THEME.palette.text.secondary,
+    drawText(this.ctx, `📅 ${dateText}`, leftX, clockY + 26, {
+      font: 'bold 14px monospace',
+      color: 'rgba(220, 236, 230, 0.78)',
       shadow: false,
     });
 
-    // Explorações (ao lado do relógio/data)
-    const beast = this.gameState.activeBeast;
     const explorationCount = beast?.explorationCount || 0;
-    
-    // Calcular posição X para explorações (após relógio/data)
-    this.ctx.font = 'bold 13px monospace';
-    const dateTextWidth = this.ctx.measureText(dateText).width;
-    const explorationX = leftX + dateTextWidth + 40; // Espaço entre relógio e explorações
-    
-    drawText(this.ctx, `🗺️ Explorações: ${explorationCount}/10`, explorationX, clockY + 11, {
-      font: 'bold 15px monospace',
-      color: GLASS_THEME.palette.text.secondary,
+    drawText(this.ctx, `🗺️ Explorações do dia: ${explorationCount}/10`, leftX, clockY + 52, {
+      font: 'bold 14px monospace',
+      color: 'rgba(183, 221, 205, 0.82)',
       shadow: false,
     });
 
-    this.drawGlobalMenu();
-  }
+    const title = 'Guardian Grove Sanctuary';
+    drawText(this.ctx, title, this.canvas.width / 2, 40, {
+      align: 'center',
+      font: 'bold 26px monospace',
+      color: GLASS_THEME.palette.accent.green,
+    });
 
-  private drawGlobalMenu() {
-    if (this.gameState.needsAvatarSelection) {
-      return;
-    }
-
-    if (this.activeMenuItem === 'ranch') {
-      this.activeMenuItem = 'guardian_village';
-    }
-
-    const menuItems = [
-      { id: 'guardian_village', label: '🏡 Guardian Village', action: () => this.onNavigate('ranch') },
-      { id: 'village', label: '🏘️ Vila', action: () => this.onOpenVillage() },
-      { id: 'inventory', label: '🎒 Inventário', action: () => this.onOpenInventory() },
-      { id: 'arena', label: '🥊 Arena PVP', action: () => this.onOpenArenaPvp() },
-      { id: 'exploration', label: '🗺️ Explorar', action: () => this.onOpenExploration() },
-      { id: 'dungeons', label: '⚔️ Dungeons', action: () => this.onOpenDungeons() },
-      { id: 'quests', label: '📜 Missões', action: () => this.onOpenQuests() },
-      { id: 'achievements', label: '🏆 Conquistas', action: () => this.onOpenAchievements() },
-      { id: 'temple', label: '🏛️ Templo', action: () => this.onOpenTemple() },
-    ];
-
-    const btnSpacing = 6;
-    const btnWidth = 126;
-    const btnHeight = 36;
-    const totalWidth = menuItems.length * (btnWidth + btnSpacing) - btnSpacing;
-    const startX = Math.max(24, (this.canvas.width - totalWidth) / 2);
-    const menuY = 76;
-
-    menuItems.forEach((item, index) => {
-      const x = startX + index * (btnWidth + btnSpacing);
-      const isHovered = isMouseOver(this.mouseX, this.mouseY, x, menuY, btnWidth, btnHeight);
-      const isActive = this.activeMenuItem === item.id;
-
-      this.drawChatStyleTab(x, menuY, btnWidth, btnHeight, item.label, isActive, isHovered);
-
-      this.buttons.set(item.id, {
-        x,
-        y: menuY,
-        width: btnWidth,
-        height: btnHeight,
-        action: () => {
-          this.activeMenuItem = item.id;
-          item.action();
-        },
-      });
+    const subtitle = beast
+      ? 'Interaja com o santuário para treinar e administrar o seu guardião'
+      : 'Selecione um guardião para começar a proteger o Grove';
+    drawText(this.ctx, subtitle, this.canvas.width / 2, 66, {
+      align: 'center',
+      font: '14px monospace',
+      color: 'rgba(215, 235, 227, 0.75)',
+      shadow: false,
     });
   }
 
@@ -623,6 +631,118 @@ export class GameUI {
     if (this.completionMessage) {
       this.drawFloatingMessage(scene3DX + 24, scene3DY + 24, this.completionMessage);
     }
+  }
+
+  private drawBeastHudOverlay() {
+    const beast = this.gameState.activeBeast;
+    if (!beast) {
+      return;
+    }
+
+    const panelWidth = Math.min(420, this.canvas.width - 60);
+    const panelHeight = 152;
+    const margin = 28;
+    const x = margin;
+    const y = this.canvas.height - panelHeight - margin;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.94;
+    this.ctx.fillStyle = 'rgba(8, 24, 17, 0.9)';
+    this.drawRoundedRectPath(x, y, panelWidth, panelHeight, 22);
+    this.ctx.fill();
+    this.ctx.strokeStyle = 'rgba(109, 199, 164, 0.38)';
+    this.ctx.lineWidth = 1.6;
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    const lineData = getBeastLineData(beast.line);
+    const infoY = y + 32;
+
+    drawText(this.ctx, `${beast.name}`, x + 24, infoY, {
+      font: 'bold 20px monospace',
+      color: GLASS_THEME.palette.text.highlight,
+    });
+
+    drawText(this.ctx, `${lineData.name} • Nível ${beast.level || 1}`, x + 24, infoY + 20, {
+      font: '13px monospace',
+      color: 'rgba(206, 231, 221, 0.8)',
+      shadow: false,
+    });
+
+    const barX = x + 24;
+    const barWidth = panelWidth - 48;
+    let barY = y + 62;
+
+    drawBar(this.ctx, barX, barY, barWidth, 18, beast.currentHp, beast.maxHp, {
+      bgColor: 'rgba(12, 43, 32, 0.4)',
+      fillColor: COLORS.attributes.vitality,
+      label: `HP ${beast.currentHp}/${beast.maxHp}`,
+    });
+
+    barY += 26;
+
+    const essence = beast.essence ?? beast.maxEssence ?? 0;
+    const maxEssence = beast.maxEssence || 100;
+    drawBar(this.ctx, barX, barY, barWidth, 18, essence, maxEssence, {
+      bgColor: 'rgba(18, 44, 60, 0.35)',
+      fillColor: COLORS.primary.blue,
+      label: `Essência ${essence}/${maxEssence}`,
+    });
+
+    barY += 26;
+
+    const fatigue = beast.secondaryStats?.fatigue ?? 0;
+    drawBar(this.ctx, barX, barY, barWidth, 14, fatigue, 100, {
+      bgColor: 'rgba(60, 32, 12, 0.35)',
+      fillColor: COLORS.ui.warning,
+      label: `Fadiga ${fatigue}/100`,
+    });
+
+    const loyalty = beast.secondaryStats?.loyalty ?? 0;
+    const stress = beast.secondaryStats?.stress ?? 0;
+    drawText(this.ctx, `Lealdade ${loyalty}/100 • Stress ${stress}/100`, x + 24, y + panelHeight - 18, {
+      font: '12px monospace',
+      color: 'rgba(188, 223, 209, 0.75)',
+      shadow: false,
+    });
+  }
+
+  private drawInteractionHints() {
+    const primary = 'Clique no chão para caminhar • Interaja com objetos iluminados para abrir menus';
+    const secondary = 'Use WASD ou o mouse para mover seu guardião pelo santuário';
+
+    this.ctx.save();
+    this.ctx.font = 'bold 14px monospace';
+    const primaryWidth = this.ctx.measureText(primary).width;
+    this.ctx.font = '12px monospace';
+    const secondaryWidth = this.ctx.measureText(secondary).width;
+    const boxWidth = Math.max(primaryWidth, secondaryWidth) + 48;
+    const boxHeight = 70;
+    const x = (this.canvas.width - boxWidth) / 2;
+    const y = this.canvas.height - boxHeight - 28;
+
+    this.ctx.fillStyle = 'rgba(8, 24, 17, 0.82)';
+    this.drawRoundedRectPath(x, y, boxWidth, boxHeight, 18);
+    this.ctx.fill();
+
+    this.ctx.strokeStyle = 'rgba(109, 199, 164, 0.32)';
+    this.ctx.lineWidth = 1.2;
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    drawText(this.ctx, primary, this.canvas.width / 2, y + 30, {
+      align: 'center',
+      font: 'bold 14px monospace',
+      color: 'rgba(203, 233, 220, 0.92)',
+      shadow: false,
+    });
+
+    drawText(this.ctx, secondary, this.canvas.width / 2, y + 52, {
+      align: 'center',
+      font: '12px monospace',
+      color: 'rgba(167, 209, 194, 0.78)',
+      shadow: false,
+    });
   }
 
   private drawBeastSprite(x: number, y: number, width: number, height: number, beast: Beast) {
