@@ -11,12 +11,25 @@ async function runMigrations() {
   console.log('[Migration] Starting database migrations...');
   
   const migrationsDir = path.join(__dirname, 'migrations');
-  const migrationFiles = fs.readdirSync(migrationsDir)
+  const allMigrationFiles = fs.readdirSync(migrationsDir)
     .filter(file => file.endsWith('.sql'))
     .sort();
 
+  const cliArg = process.argv[2];
+  const specificMigration = process.env.MIGRATION_FILE || cliArg;
+  if (specificMigration) {
+    console.log(`[Migration] Filtering by file: ${specificMigration}`);
+  }
+  const migrationFiles = specificMigration
+    ? allMigrationFiles.filter(file => file === specificMigration)
+    : allMigrationFiles;
+
   if (migrationFiles.length === 0) {
-    console.log('[Migration] No migration files found');
+    if (specificMigration) {
+      console.log(`[Migration] Migration file "${specificMigration}" not found`);
+    } else {
+      console.log('[Migration] No migration files found');
+    }
     return;
   }
 

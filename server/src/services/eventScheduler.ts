@@ -98,7 +98,15 @@ async function processDailyCycle() {
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'beasts' 
-      AND column_name IN ('age_in_days', 'last_day_processed', 'last_update', 'max_age_weeks')
+      AND column_name IN (
+        'age_in_days',
+        'last_day_processed',
+        'last_update',
+        'max_age_weeks',
+        'daily_training_count',
+        'daily_potion_used',
+        'exploration_count'
+      )
     `);
     
     const availableColumns = columnCheck.rows.map(r => r.column_name);
@@ -106,8 +114,19 @@ async function processDailyCycle() {
     const hasLastDayProcessed = availableColumns.includes('last_day_processed');
     const hasLastUpdate = availableColumns.includes('last_update');
     const hasMaxAge = availableColumns.includes('max_age_weeks');
+    const hasDailyTrainingCount = availableColumns.includes('daily_training_count');
+    const hasDailyPotionUsed = availableColumns.includes('daily_potion_used');
+    const hasExplorationCount = availableColumns.includes('exploration_count');
     
-    console.log('[EventScheduler] Available columns:', { hasAgeInDays, hasLastDayProcessed, hasLastUpdate, hasMaxAge });
+    console.log('[EventScheduler] Available columns:', {
+      hasAgeInDays,
+      hasLastDayProcessed,
+      hasLastUpdate,
+      hasMaxAge,
+      hasDailyTrainingCount,
+      hasDailyPotionUsed,
+      hasExplorationCount,
+    });
     
     // Se não tem as colunas necessárias, pular processamento
     if (!hasAgeInDays || !hasLastDayProcessed) {
@@ -162,9 +181,17 @@ async function processDailyCycle() {
       }
       
       // NOVO: Resetar limites diários à meia-noite de Brasília
-      updateFields.push('daily_training_count = 0');
-      updateFields.push('daily_potion_used = false');
-      updateFields.push('exploration_count = 0');
+      if (hasDailyTrainingCount) {
+        updateFields.push('daily_training_count = 0');
+      }
+
+      if (hasDailyPotionUsed) {
+        updateFields.push('daily_potion_used = false');
+      }
+
+      if (hasExplorationCount) {
+        updateFields.push('exploration_count = 0');
+      }
       
       if (!isAlive) {
         updateFields.push('is_active = false');

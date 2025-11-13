@@ -16,7 +16,9 @@ export async function autoFixSchema(): Promise<void> {
       WHERE table_name = 'beasts' AND column_name = 'current_action';
     `);
     
-    if (checkColumn.rows.length === 0) {
+    const needsLegacyColumns = checkColumn.rows.length === 0;
+
+    if (needsLegacyColumns) {
       console.log('[DB] ⚠️ Coluna current_action não existe. Criando...');
       
       // Criar current_action e outras colunas necessárias
@@ -48,7 +50,36 @@ export async function autoFixSchema(): Promise<void> {
       `);
       
       console.log('[DB] ✅ Índices criados com sucesso!');
-    } else {
+    }
+
+    // Garantir colunas de limites diários (novas no Guardian Grove)
+    await query(`
+      ALTER TABLE beasts
+      ADD COLUMN IF NOT EXISTS daily_training_count INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS daily_potion_used BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS exploration_count INTEGER DEFAULT 0;
+    `);
+
+    // Atualizar valores nulos para os novos campos
+    await query(`
+      UPDATE beasts
+      SET daily_training_count = 0
+      WHERE daily_training_count IS NULL;
+    `);
+
+    await query(`
+      UPDATE beasts
+      SET daily_potion_used = false
+      WHERE daily_potion_used IS NULL;
+    `);
+
+    await query(`
+      UPDATE beasts
+      SET exploration_count = 0
+      WHERE exploration_count IS NULL;
+    `);
+
+    if (!needsLegacyColumns) {
       console.log('[DB] ✅ Schema está correto!');
     }
     
