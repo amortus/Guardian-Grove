@@ -22,9 +22,6 @@ export const STARTER_CONFIG: Array<{ line: BeastLine; name: string }> = [
 ];
 
 export function createNewGame(playerName: string): GameState {
-  const defaultStarter = STARTER_CONFIG[0];
-  const firstBeast = createBeast(defaultStarter.line, defaultStarter.name, 0);
-
   const gameState: GameState = {
     // Sistema de tempo real
     serverTime: Date.now(),
@@ -45,12 +42,12 @@ export function createNewGame(playerName: string): GameState {
     },
     
     ranch: {
-      beasts: [firstBeast],
+      beasts: [],
       maxBeasts: 1,
       upgrades: [],
     },
     
-    activeBeast: firstBeast,
+    activeBeast: null,
     needsAvatarSelection: true,
     
     economy: {

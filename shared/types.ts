@@ -143,6 +143,7 @@ export interface GameSaveDTO {
   coronas: number;
   victories: number;
   currentTitle: string;
+  needsAvatarSelection: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

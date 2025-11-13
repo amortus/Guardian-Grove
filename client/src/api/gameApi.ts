@@ -10,7 +10,7 @@ export const gameApi = {
   /**
    * Initialize new game
    */
-  async initializeGame(playerName: string): Promise<ApiResponse<{ gameSave: GameSaveDTO; initialBeast: BeastDTO }>> {
+  async initializeGame(playerName: string): Promise<ApiResponse<{ gameSave: GameSaveDTO; initialBeast: BeastDTO | null }>> {
     return apiClient.post('/game/initialize', { playerName });
   },
 
@@ -39,6 +39,13 @@ export const gameApi = {
    */
   async updateBeast(beastId: string, beastData: any): Promise<ApiResponse<BeastDTO>> {
     return apiClient.put(`/game/beast/${beastId}`, beastData);
+  },
+
+  /**
+   * Select the initial guardian for the player
+   */
+  async createInitialBeast(line: string, name: string): Promise<ApiResponse<BeastDTO>> {
+    return apiClient.post('/game/beast', { line, name });
   },
 
   /**

@@ -1,8 +1,9 @@
+import type { ElementalAffinity, PersonalityTrait } from '../types';
+
 /**
  * Beast Data Utility
  * Provides base stats and techniques for each beast line
  */
-
 export interface BeastLineData {
   name: string;
   attributes: {
@@ -175,6 +176,59 @@ export function generateRandomBeast(playerName: string) {
   console.log(`[BeastGen] Stats: might=${beast.attributes.might}, vitality=${beast.attributes.vitality}, loyalty=${beast.secondaryStats.loyalty}`);
   console.log(`[BeastGen] Traits: ${beast.traits.join(', ')}`);
   
+  return beast;
+}
+
+const STARTER_AFFINITIES: Record<string, string> = {
+  feralis: 'air',
+  mirella: 'water',
+  olgrim: 'ether',
+  raukor: 'shadow',
+  sylphid: 'light',
+  ignar: 'fire',
+  terravox: 'earth',
+};
+
+const STARTER_TRAITS: Record<string, string[]> = {
+  feralis: ['aggressive', 'brave'],
+  mirella: ['patient', 'loyal'],
+  olgrim: ['curious', 'disciplined'],
+  raukor: ['loyal', 'stubborn'],
+  sylphid: ['eccentric', 'curious'],
+  ignar: ['aggressive', 'impulsive'],
+  terravox: ['patient', 'disciplined'],
+};
+
+export function createStarterBeast(line: string, displayName: string) {
+  const normalizedLine = (line || '').toLowerCase();
+  const lineData = getBeastLineData(normalizedLine);
+
+  const name = displayName && displayName.trim().length > 0 ? displayName.trim() : lineData.name;
+
+  const affinity = (STARTER_AFFINITIES[normalizedLine] || 'earth') as ElementalAffinity;
+  const traits = (STARTER_TRAITS[normalizedLine] || ['loyal', 'brave']) as PersonalityTrait[];
+
+  const beast = {
+    name,
+    line: normalizedLine,
+    blood: 'common',
+    affinity,
+    attributes: { ...lineData.attributes },
+    secondaryStats: {
+      fatigue: 0,
+      stress: 0,
+      loyalty: 60,
+      age: 0,
+      maxAge: 120,
+    },
+    techniques: lineData.techniques,
+    currentHp: lineData.maxHp,
+    maxHp: lineData.maxHp,
+    essence: 60,
+    maxEssence: 90,
+    traits,
+  };
+
   return beast;
 }
 

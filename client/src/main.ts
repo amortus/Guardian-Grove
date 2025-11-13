@@ -34,7 +34,7 @@ import { registerMessageHandler } from './ui/message-service';
 import { COLORS } from './ui/colors';
 import { createNewGame, saveGame, loadGame, advanceGameWeek, addMoney } from './systems/game-state';
 import { advanceWeek } from './systems/calendar';
-import { isBeastAlive, calculateBeastAge, recalculateDerivedStats, createBeast } from './systems/beast';
+import { isBeastAlive, calculateBeastAge, recalculateDerivedStats } from './systems/beast';
 import { 
   canStartAction,
   startAction,
@@ -86,6 +86,101 @@ function applyGuardianTheme() {
 }
 
 applyGuardianTheme();
+
+function parseServerTraits(rawTraits: any): string[] {
+  if (Array.isArray(rawTraits)) {
+    return rawTraits;
+  }
+
+  if (typeof rawTraits === 'string') {
+    try {
+      const parsed = JSON.parse(rawTraits);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function parseServerTechniques(serverBeast: any): any[] {
+  let techniqueIds: string[] = [];
+
+  if (Array.isArray(serverBeast.techniques)) {
+    techniqueIds = serverBeast.techniques;
+  } else if (typeof serverBeast.techniques === 'string') {
+    try {
+      const parsed = JSON.parse(serverBeast.techniques);
+      if (Array.isArray(parsed)) {
+        techniqueIds = parsed;
+      }
+    } catch {
+      techniqueIds = [];
+    }
+  }
+
+  const techniques = techniqueIds
+    .map((id) => TECHNIQUES[id])
+    .filter((tech) => tech !== undefined);
+
+  if (techniques.length === 0) {
+    return getStartingTechniques(serverBeast.line);
+  }
+
+  return techniques;
+}
+
+function mapServerBeast(serverBeast: any): Beast {
+  const beast: any = {
+    id: serverBeast.id ?? `beast-${Date.now()}`,
+    name: serverBeast.name,
+    line: serverBeast.line,
+    blood: serverBeast.blood || 'common',
+    affinity: serverBeast.affinity || 'earth',
+    attributes: {
+      might: serverBeast.might ?? 20,
+      wit: serverBeast.wit ?? 20,
+      focus: serverBeast.focus ?? 20,
+      agility: serverBeast.agility ?? 20,
+      ward: serverBeast.ward ?? 20,
+      vitality: serverBeast.vitality ?? 20,
+    },
+    secondaryStats: {
+      fatigue: serverBeast.fatigue ?? 0,
+      stress: serverBeast.stress ?? 0,
+      loyalty: serverBeast.loyalty ?? 50,
+      age: serverBeast.age ?? 0,
+      maxAge: serverBeast.max_age ?? 120,
+    },
+    traits: parseServerTraits(serverBeast.traits),
+    techniques: parseServerTechniques(serverBeast),
+    currentHp: serverBeast.current_hp ?? 100,
+    maxHp: serverBeast.max_hp ?? 100,
+    essence: serverBeast.essence ?? 50,
+    maxEssence: serverBeast.max_essence ?? 90,
+    activeBuffs: [],
+    currentAction: serverBeast.current_action,
+    lastExploration: serverBeast.last_exploration ?? 0,
+    lastTournament: serverBeast.last_tournament ?? 0,
+    explorationCount: serverBeast.exploration_count ?? 0,
+    birthDate: serverBeast.birth_date ?? Date.now(),
+    lastUpdate: serverBeast.last_update ?? Date.now(),
+    workBonusCount: serverBeast.work_bonus_count ?? 0,
+    ageInDays: serverBeast.age_in_days ?? 0,
+    lastDayProcessed: serverBeast.last_day_processed ?? 0,
+    victories: serverBeast.victories ?? 0,
+    defeats: serverBeast.defeats ?? 0,
+    lifeEvents: serverBeast.life_events || [],
+  };
+
+  beast.level = serverBeast.level ?? 1;
+  beast.experience = serverBeast.experience ?? 0;
+
+  recalculateDerivedStats(beast);
+
+  return beast as Beast;
+}
 
 // Elements
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -837,119 +932,42 @@ async function loadGameFromServer() {
       gameState.serverTime = Date.now();
       gameState.lastSync = Date.now();
       
-      // Load the active Beast from server
+      const mappedBeasts: Beast[] = [];
+      let activeBeast: Beast | null = null;
+
       if (serverData.beasts && serverData.beasts.length > 0) {
-        const serverBeast = serverData.beasts.find((b: any) => b.is_active) || serverData.beasts[0];
-        
-        // Map server beast to client Beast format
-        gameState.activeBeast = {
-          id: serverBeast.id,
-          name: serverBeast.name,
-          line: serverBeast.line,
-          blood: serverBeast.blood || 'common',
-          affinity: serverBeast.affinity || 'earth',
-          attributes: {
-            might: serverBeast.might,
-            wit: serverBeast.wit,
-            focus: serverBeast.focus,
-            agility: serverBeast.agility,
-            ward: serverBeast.ward,
-            vitality: serverBeast.vitality
-          },
-          secondaryStats: {
-            fatigue: serverBeast.fatigue || 0,
-            stress: serverBeast.stress || 0,
-            loyalty: serverBeast.loyalty || 50,
-            age: serverBeast.age || 0,
-            maxAge: serverBeast.max_age || 100
-          },
-          traits: Array.isArray(serverBeast.traits) ? serverBeast.traits : 
-                 (typeof serverBeast.traits === 'string' ? JSON.parse(serverBeast.traits) : []),
-          techniques: (() => {
-            // Parse techniques from server
-            let techIds: string[] = [];
-            if (Array.isArray(serverBeast.techniques)) {
-              techIds = serverBeast.techniques;
-            } else if (typeof serverBeast.techniques === 'string') {
-              try {
-                techIds = JSON.parse(serverBeast.techniques);
-              } catch {
-                techIds = [];
-              }
-            }
-            
-            console.log('[Beast] Technique IDs from server:', serverBeast.techniques);
-            console.log('[Beast] Parsed IDs:', techIds);
-            
-            // Convert technique IDs to full Technique objects
-            let techniques = techIds
-              .map(id => TECHNIQUES[id])
-              .filter(tech => tech !== undefined);
-            
-            // FALLBACK: If no techniques, give starting technique for the beast line
-            if (techniques.length === 0) {
-              console.warn('[Beast] ⚠️ No techniques found in server data! Using fallback...');
-              console.log('[Beast] Beast line:', serverBeast.line);
-              techniques = getStartingTechniques(serverBeast.line);
-              console.log('[Beast] Fallback techniques assigned:', techniques);
-            }
-            
-            console.log('[Beast] Final techniques:', techniques);
-            
-            return techniques;
-          })(),
-          currentHp: serverBeast.current_hp,
-          maxHp: serverBeast.max_hp,
-          essence: serverBeast.essence,
-          maxEssence: serverBeast.max_essence,
-          level: serverBeast.level || 1,
-          experience: serverBeast.experience || 0,
-          activeBuffs: [],
-          
-          // Campos de tempo real
-          currentAction: serverBeast.current_action,
-          lastExploration: serverBeast.last_exploration || 0,
-          lastTournament: serverBeast.last_tournament || 0,
-          explorationCount: serverBeast.exploration_count || 0,
-          birthDate: serverBeast.birth_date || Date.now(),
-          lastUpdate: serverBeast.last_update || Date.now(),
-          workBonusCount: serverBeast.work_bonus_count || 0,
-          
-          // Sistema de ciclo diário
-          ageInDays: serverBeast.age_in_days || 0,
-          lastDayProcessed: serverBeast.last_day_processed || 0,
-          
-          // Histórico de batalhas (CRÍTICO: prevenir NaN)
-          victories: serverBeast.victories ?? 0,
-          defeats: serverBeast.defeats ?? 0,
-          
-          // Eventos de vida
-          lifeEvents: serverBeast.life_events || []
-        };
-        
-        // CRÍTICO: Recalcular stats derivados baseados nos atributos atuais
-        // Isso garante que HP/Essência máximos estejam corretos após treino
-        recalculateDerivedStats(gameState.activeBeast);
-        
+        for (const serverBeast of serverData.beasts) {
+          const mapped = mapServerBeast(serverBeast);
+          mappedBeasts.push(mapped);
+
+          if (!activeBeast || serverBeast.is_active) {
+            activeBeast = mapped;
+          }
+        }
+      }
+
+      gameState.ranch.beasts = mappedBeasts;
+      gameState.activeBeast = activeBeast || null;
+      gameState.needsAvatarSelection = Boolean(
+        serverData.gameSave.needs_avatar_selection ?? mappedBeasts.length === 0
+      );
+
+      if (!gameState.needsAvatarSelection && gameState.activeBeast) {
         console.log('[Game] Loaded Beast from server:', gameState.activeBeast.name, `(${gameState.activeBeast.line})`);
-        
-        // Processar ciclo diário se necessário (incrementa idade à meia-noite)
+
         try {
           const cycleResponse = await gameApi.processDailyCycle(gameState.activeBeast.id);
           if (cycleResponse.success && cycleResponse.data) {
             if (cycleResponse.data.processed) {
               console.log(`[DailyCycle] Beast aged: ${cycleResponse.data.ageInDays} days`);
               gameState.activeBeast.ageInDays = cycleResponse.data.ageInDays;
-              gameState.activeBeast.explorationCount = 0; // Resetado pelo servidor
-              
-              // Atualizar UI para refletir a nova idade
+              gameState.activeBeast.explorationCount = 0;
               if (gameUI) {
                 gameUI.updateGameState(gameState);
               }
             }
             if (cycleResponse.data.died) {
               console.log('[DailyCycle] Beast died of old age');
-              // Atualizar UI se a besta morreu
               if (gameUI) {
                 gameUI.updateGameState(gameState);
               }
@@ -957,30 +975,28 @@ async function loadGameFromServer() {
           }
         } catch (error) {
           console.error('[DailyCycle] Failed to process daily cycle:', error);
-          // Log detalhes do erro se disponível
           if (error instanceof Error) {
             console.error('[DailyCycle] Error details:', error.message, error.stack);
           }
         }
-        
-        // Verificar se a besta morreu (servidor já processou ciclo diário)
+
         const now = Date.now();
         if (!isBeastAlive(gameState.activeBeast, now)) {
           const beastName = gameState.activeBeast.name;
           const ageInfo = calculateBeastAge(gameState.activeBeast, now);
-          
+
           showMessage(
             `${beastName} chegou ao fim de sua jornada após ${ageInfo.ageInDays} dias... 😢\n\nVocê pode criar uma nova besta no Templo dos Ecos.`,
             '💔 Fim da Jornada'
           );
-          
-          // Mover para bestas falecidas
+
           gameState.deceasedBeasts.push(gameState.activeBeast);
           gameState.activeBeast = null;
-          
-          // Salvar
+
           await saveGame(gameState);
         }
+      } else {
+        gameState.activeBeast = null;
       }
       
       // Carregar inventário do servidor
@@ -1192,10 +1208,16 @@ async function setupGame() {
       try {
         const lineData = getBeastLineData(line);
         const displayName = lineData.name.split(' (')[0] ?? lineData.name;
-        const newBeast = createBeast(line, displayName, gameState.currentWeek ?? 1);
 
-        gameState.activeBeast = newBeast;
-        gameState.ranch.beasts = [newBeast];
+        const response = await gameApi.createInitialBeast(line, displayName);
+        if (!response.success || !response.data) {
+          throw new Error(response.error || 'Falha ao criar guardião');
+        }
+
+        const mappedBeast = mapServerBeast(response.data);
+
+        gameState.activeBeast = mappedBeast;
+        gameState.ranch.beasts = [mappedBeast];
         gameState.needsAvatarSelection = false;
 
         try {
@@ -1208,9 +1230,12 @@ async function setupGame() {
         gameUI?.draw();
 
         showMessage(`${displayName} agora caminha ao seu lado no Guardian Grove!`, '🌳 Guardião Escolhido');
-      } catch (error) {
+      } catch (error: any) {
         console.error('[Avatar] Erro ao selecionar guardião:', error);
-        showMessage('Não foi possível criar o guardião. Tente novamente.', '⚠️ Erro');
+        showMessage(
+          error?.response?.data?.error || error?.message || 'Não foi possível criar o guardião. Tente novamente.',
+          '⚠️ Erro'
+        );
       }
     };
     

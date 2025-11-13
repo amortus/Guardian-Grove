@@ -7,7 +7,7 @@ import { Response } from 'express';
 import { query, getClient } from '../db/connection';
 import { AuthRequest } from '../middleware/auth';
 import { ApiResponse, GameSaveDTO, BeastDTO } from '../types';
-import { generateRandomBeast } from '../utils/beastData';
+import { createStarterBeast } from '../utils/beastData';
 
 /**
  * Initialize new game for user
@@ -49,156 +49,18 @@ export async function initializeGame(req: AuthRequest, res: Response) {
       } as ApiResponse);
     }
 
-    // Create game save
     const gameSaveResult = await client.query(
-      `INSERT INTO game_saves (user_id, player_name)
-       VALUES ($1, $2)
-       RETURNING id, user_id, player_name, week, coronas, victories, current_title, created_at, updated_at`,
+      `INSERT INTO game_saves (user_id, player_name, needs_avatar_selection)
+       VALUES ($1, $2, true)
+       RETURNING id, user_id, player_name, week, coronas, victories, current_title, created_at, updated_at, needs_avatar_selection`,
       [userId, playerName.trim()]
     );
 
     const gameSave = gameSaveResult.rows[0];
 
-    // Generate completely random and unique beast
-    const randomBeast = generateRandomBeast(playerName.trim());
-
-    // Create initial beast with randomized stats
-    const now = Date.now();
-    
-    // Calcular meia-noite de hoje (Brasília) para inicializar lastDayProcessed
-    const brasiliaFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    });
-    const parts = brasiliaFormatter.formatToParts(new Date(now));
-    const year = parseInt(parts.find(p => p.type === 'year')!.value);
-    const month = parseInt(parts.find(p => p.type === 'month')!.value) - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')!.value);
-    const brasiliaMidnight = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
-    // Ajustar para o timezone correto
-    const utcTime = new Date(now).getTime();
-    const brasiliaTime = new Date(brasiliaFormatter.format(new Date(now))).getTime();
-    const offset = utcTime - brasiliaTime;
-    const midnightTimestamp = brasiliaMidnight.getTime() + offset;
-    
-    // Verificar quais colunas existem na tabela beasts
-    console.log('[Game] Checking for available columns...');
-    let hasBirthDate = false;
-    let hasLastUpdate = false;
-    let hasAgeInDays = false;
-    let hasLastDayProcessed = false;
-    let hasLevel = false;
-    let hasExperience = false;
-    
-    try {
-      const columnCheck = await client.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'beasts' 
-        AND column_name IN ('birth_date', 'last_update', 'age_in_days', 'last_day_processed', 'level', 'experience')
-      `);
-      
-      const availableColumns = columnCheck.rows.map(r => r.column_name);
-      hasBirthDate = availableColumns.includes('birth_date');
-      hasLastUpdate = availableColumns.includes('last_update');
-      hasAgeInDays = availableColumns.includes('age_in_days');
-      hasLastDayProcessed = availableColumns.includes('last_day_processed');
-      hasLevel = availableColumns.includes('level');
-      hasExperience = availableColumns.includes('experience');
-      
-      console.log('[Game] Available columns:', { hasBirthDate, hasLastUpdate, hasAgeInDays, hasLastDayProcessed, hasLevel, hasExperience });
-    } catch (columnError: any) {
-      console.warn('[Game] Error checking columns, using minimal INSERT:', columnError.message);
-      // Assume nenhuma coluna nova existe
-    }
-    
-    // Construir query dinamicamente baseado nas colunas disponíveis
-    const baseColumns = [
-      'game_save_id', 'name', 'line', 'blood', 'affinity', 'is_active',
-      'current_hp', 'max_hp', 'essence', 'max_essence',
-      'might', 'wit', 'focus', 'agility', 'ward', 'vitality',
-      'loyalty', 'stress', 'fatigue', 'techniques', 'traits'
-    ];
-    
-    const baseValues = [
-      gameSave.id,
-      randomBeast.name,
-      randomBeast.line,
-      randomBeast.blood,
-      randomBeast.affinity,
-      true,
-      randomBeast.currentHp,
-      randomBeast.maxHp,
-      randomBeast.essence,
-      randomBeast.maxEssence,
-      randomBeast.attributes.might,
-      randomBeast.attributes.wit,
-      randomBeast.attributes.focus,
-      randomBeast.attributes.agility,
-      randomBeast.attributes.ward,
-      randomBeast.attributes.vitality,
-      randomBeast.secondaryStats.loyalty,
-      randomBeast.secondaryStats.stress,
-      randomBeast.secondaryStats.fatigue,
-      JSON.stringify(randomBeast.techniques),
-      JSON.stringify(randomBeast.traits)
-    ];
-    
-    let insertColumns = [...baseColumns];
-    let insertValues = [...baseValues];
-    let paramIndex = baseValues.length + 1;
-    
-    if (hasLevel) {
-      insertColumns.push('level');
-      insertValues.push(randomBeast.level);
-      paramIndex++;
-    }
-    
-    if (hasExperience) {
-      insertColumns.push('experience');
-      insertValues.push(randomBeast.experience);
-      paramIndex++;
-    }
-    
-    if (hasBirthDate) {
-      insertColumns.push('birth_date');
-      insertValues.push(now);
-      paramIndex++;
-    }
-    
-    if (hasLastUpdate) {
-      insertColumns.push('last_update');
-      insertValues.push(now);
-      paramIndex++;
-    }
-    
-    if (hasAgeInDays) {
-      insertColumns.push('age_in_days');
-      insertValues.push(0);
-      paramIndex++;
-    }
-    
-    if (hasLastDayProcessed) {
-      insertColumns.push('last_day_processed');
-      insertValues.push(midnightTimestamp);
-      paramIndex++;
-    }
-    
-    // Construir query final
-    const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(', ');
-    const insertQuery = `INSERT INTO beasts (${insertColumns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
-    
-    console.log('[Game] Inserting beast with query:', insertQuery.substring(0, 100) + '...');
-    console.log('[Game] Insert values count:', insertValues.length);
-    
-    const beastResult = await client.query(insertQuery, insertValues);
-    console.log('[Game] Beast inserted successfully, ID:', beastResult.rows[0]?.id);
-
-    console.log('[Game] Committing transaction...');
     await client.query('COMMIT');
 
-    console.log(`[Game] Initialized game for user ${userId}: ${playerName} with ${randomBeast.line} (${randomBeast.blood})`);
+    console.log(`[Game] Initialized game for user ${userId}: ${playerName} (awaiting guardian selection)`);
 
     return res.status(201).json({
       success: true,
@@ -212,9 +74,10 @@ export async function initializeGame(req: AuthRequest, res: Response) {
           victories: gameSave.victories,
           currentTitle: gameSave.current_title,
           createdAt: gameSave.created_at,
-          updatedAt: gameSave.updated_at
+          updatedAt: gameSave.updated_at,
+          needsAvatarSelection: gameSave.needs_avatar_selection ?? true,
         } as GameSaveDTO,
-        initialBeast: beastResult.rows[0]
+        initialBeast: null
       }
     } as ApiResponse);
 
@@ -240,6 +103,194 @@ export async function initializeGame(req: AuthRequest, res: Response) {
 }
 
 /**
+ * Select initial guardian (beast) for a player
+ */
+export async function selectInitialBeast(req: AuthRequest, res: Response) {
+  const client = await getClient();
+
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' } as ApiResponse);
+    }
+
+    const { line, name } = req.body as { line?: string; name?: string };
+    if (!line || typeof line !== 'string') {
+      return res.status(400).json({ success: false, error: 'Guardian line is required' } as ApiResponse);
+    }
+
+    const allowedLines = ['feralis', 'mirella', 'olgrim', 'raukor', 'sylphid', 'ignar', 'terravox'];
+    const normalizedLine = line.toLowerCase();
+
+    if (!allowedLines.includes(normalizedLine)) {
+      return res.status(400).json({ success: false, error: 'Invalid guardian line' } as ApiResponse);
+    }
+
+    await client.query('BEGIN');
+
+    const saveResult = await client.query(
+      `SELECT id, needs_avatar_selection FROM game_saves WHERE user_id = $1 FOR UPDATE`,
+      [userId]
+    );
+
+    if (saveResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, error: 'Game save not found' } as ApiResponse);
+    }
+
+    const gameSave = saveResult.rows[0];
+
+    if (!gameSave.needs_avatar_selection) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: 'Guardian already selected' } as ApiResponse);
+    }
+
+    const starter = createStarterBeast(normalizedLine, name);
+
+    // Ensure no other beast is active for this save
+    await client.query(
+      `UPDATE beasts SET is_active = false WHERE game_save_id = $1`,
+      [gameSave.id]
+    );
+
+    const now = Date.now();
+
+    const columnCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'beasts' 
+      AND column_name IN (
+        'birth_date', 'last_update', 'age_in_days', 'last_day_processed',
+        'level', 'experience', 'current_action', 'last_exploration',
+        'last_tournament', 'exploration_count', 'work_bonus_count'
+      )
+    `);
+
+    const availableColumns = columnCheck.rows.map((r) => r.column_name);
+
+    const baseColumns = [
+      'game_save_id', 'name', 'line', 'blood', 'affinity', 'is_active',
+      'current_hp', 'max_hp', 'essence', 'max_essence',
+      'might', 'wit', 'focus', 'agility', 'ward', 'vitality',
+      'loyalty', 'stress', 'fatigue', 'techniques', 'traits'
+    ];
+
+    const baseValues = [
+      gameSave.id,
+      starter.name,
+      starter.line,
+      starter.blood,
+      starter.affinity,
+      true,
+      starter.currentHp,
+      starter.maxHp,
+      starter.essence,
+      starter.maxEssence,
+      starter.attributes.might,
+      starter.attributes.wit,
+      starter.attributes.focus,
+      starter.attributes.agility,
+      starter.attributes.ward,
+      starter.attributes.vitality,
+      starter.secondaryStats.loyalty,
+      starter.secondaryStats.stress,
+      starter.secondaryStats.fatigue,
+      JSON.stringify(starter.techniques),
+      JSON.stringify(starter.traits)
+    ];
+
+    let insertColumns = [...baseColumns];
+    let insertValues = [...baseValues];
+
+    if (availableColumns.includes('level')) {
+      insertColumns.push('level');
+      insertValues.push(1);
+    }
+
+    if (availableColumns.includes('experience')) {
+      insertColumns.push('experience');
+      insertValues.push(0);
+    }
+
+    if (availableColumns.includes('birth_date')) {
+      insertColumns.push('birth_date');
+      insertValues.push(now);
+    }
+
+    if (availableColumns.includes('last_update')) {
+      insertColumns.push('last_update');
+      insertValues.push(now);
+    }
+
+    if (availableColumns.includes('age_in_days')) {
+      insertColumns.push('age_in_days');
+      insertValues.push(0);
+    }
+
+    if (availableColumns.includes('last_day_processed')) {
+      const midnight = new Date();
+      midnight.setHours(0, 0, 0, 0);
+      insertColumns.push('last_day_processed');
+      insertValues.push(midnight.getTime());
+    }
+
+    if (availableColumns.includes('current_action')) {
+      insertColumns.push('current_action');
+      insertValues.push(null);
+    }
+
+    if (availableColumns.includes('last_exploration')) {
+      insertColumns.push('last_exploration');
+      insertValues.push(0);
+    }
+
+    if (availableColumns.includes('last_tournament')) {
+      insertColumns.push('last_tournament');
+      insertValues.push(0);
+    }
+
+    if (availableColumns.includes('exploration_count')) {
+      insertColumns.push('exploration_count');
+      insertValues.push(0);
+    }
+
+    if (availableColumns.includes('work_bonus_count')) {
+      insertColumns.push('work_bonus_count');
+      insertValues.push(0);
+    }
+
+    const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(', ');
+    const insertQuery = `INSERT INTO beasts (${insertColumns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+
+    const beastResult = await client.query(insertQuery, insertValues);
+    const beast = beastResult.rows[0];
+
+    await client.query(
+      `UPDATE game_saves SET needs_avatar_selection = false WHERE id = $1`,
+      [gameSave.id]
+    );
+
+    await client.query('COMMIT');
+
+    return res.status(201).json({
+      success: true,
+      data: beast
+    } as ApiResponse<BeastDTO>);
+
+  } catch (error: any) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[Game] selectInitialBeast error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to create guardian',
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+    } as ApiResponse);
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Get game save for current user
  */
 export async function getGameSave(req: AuthRequest, res: Response) {
@@ -253,6 +304,7 @@ export async function getGameSave(req: AuthRequest, res: Response) {
     const saveResult = await query(
       `SELECT id, user_id, player_name, week, coronas, victories, current_title,
               win_streak, lose_streak, total_trains, total_crafts, total_spent,
+              needs_avatar_selection,
               created_at, updated_at
        FROM game_saves
        WHERE user_id = $1`,
