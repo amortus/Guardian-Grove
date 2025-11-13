@@ -52,6 +52,16 @@ export class GameUI {
   private useFullRanchScene: boolean = true; // Toggle to use full ranch vs mini viewer
   private lastRealRanchSceneWidth: number = 0; // Cache do tamanho REAL (escalado) para detectar mudança
   private lastRealRanchSceneHeight: number = 0;
+  private ranchScenePointerHandlers: { move: (event: PointerEvent) => void; click: (event: PointerEvent) => void; leave: () => void } | null = null;
+  private hubHoverLabel: HTMLDivElement | null = null;
+  private currentHubHoverId: string | null = null;
+  private hubInteractions: Record<string, { label: string; action: () => void }> = {
+    mission_board: { label: 'as Missões', action: () => { this.activeMenuItem = 'quests'; this.onOpenQuests(); } },
+    craft_well: { label: 'a Oficina', action: () => { this.activeMenuItem = 'craft'; this.onOpenCraft(); } },
+    tree_house: { label: 'o Inventário', action: () => { this.activeMenuItem = 'inventory'; this.onOpenInventory(); } },
+    tavern: { label: 'a Arena PVP', action: () => { this.activeMenuItem = 'arena'; this.onOpenArenaPvp(); } },
+    temple: { label: 'o Templo', action: () => { this.activeMenuItem = 'temple'; this.onOpenTemple(); } },
+  };
   
   // Public callbacks
   public onView3D: () => void = () => {};
@@ -99,7 +109,21 @@ export class GameUI {
       this.ranchScene3D.dispose();
       this.ranchScene3D = null;
     }
-    
+
+    if (this.ranchScene3DContainer && this.ranchScenePointerHandlers) {
+      this.ranchScene3DContainer.removeEventListener('pointermove', this.ranchScenePointerHandlers.move);
+      this.ranchScene3DContainer.removeEventListener('click', this.ranchScenePointerHandlers.click);
+      this.ranchScene3DContainer.removeEventListener('pointerleave', this.ranchScenePointerHandlers.leave);
+      this.ranchScenePointerHandlers = null;
+    }
+
+    if (this.hubHoverLabel && this.hubHoverLabel.parentNode) {
+      this.hubHoverLabel.parentNode.removeChild(this.hubHoverLabel);
+      this.hubHoverLabel = null;
+    }
+    this.currentHubHoverId = null;
+    document.body.style.cursor = '';
+
     if (this.ranchScene3DContainer && this.ranchScene3DContainer.parentNode) {
       console.log('[GameUI] Removing Ranch Scene 3D container from DOM...');
       this.ranchScene3DContainer.parentNode.removeChild(this.ranchScene3DContainer);
@@ -144,7 +168,8 @@ export class GameUI {
         top: ${realTop}px;
         width: ${realWidth}px;
         height: ${realHeight}px;
-        pointer-events: none;
+        pointer-events: auto;
+        cursor: default;
         z-index: 2;
         overflow: hidden;
       `;
@@ -159,9 +184,34 @@ export class GameUI {
       this.ranchScene3DContainer.appendChild(canvas);
       
       document.body.appendChild(this.ranchScene3DContainer);
+      this.ensureHubHoverLabel();
+
+      const getRect = () => this.ranchScene3DContainer!.getBoundingClientRect();
+      const onPointerMove = (event: PointerEvent) => {
+        if (!this.ranchScene3D) return;
+        this.ranchScene3D.handlePointerMove(event.clientX, event.clientY, getRect());
+      };
+      const onClick = (event: PointerEvent) => {
+        if (!this.ranchScene3D) return;
+        const id = this.ranchScene3D.handlePointerClick(event.clientX, event.clientY, getRect());
+        if (id) {
+          event.preventDefault();
+        }
+      };
+      const onPointerLeave = () => {
+        this.ranchScene3D?.clearHover();
+        this.updateHubHover(null);
+      };
+
+      this.ranchScene3DContainer.addEventListener('pointermove', onPointerMove);
+      this.ranchScene3DContainer.addEventListener('click', onClick);
+      this.ranchScene3DContainer.addEventListener('pointerleave', onPointerLeave);
+      this.ranchScenePointerHandlers = { move: onPointerMove, click: onClick, leave: onPointerLeave };
       
       // Create Ranch Scene 3D
       this.ranchScene3D = new GuardianHubScene3D(canvas);
+      this.ranchScene3D.setInteractionCallback((id) => this.handleHubInteraction(id));
+      this.ranchScene3D.setHoverCallback((id) => this.updateHubHover(id));
       this.ranchScene3D.setBeast(beast.line);
       this.ranchScene3D.startLoop();
       
@@ -193,7 +243,67 @@ export class GameUI {
       this.ranchScene3DContainer.style.height = `${realHeight}px`;
     }
   }
-  
+
+  private ensureHubHoverLabel() {
+    if (this.hubHoverLabel || !this.ranchScene3DContainer) {
+      return;
+    }
+
+    const label = document.createElement('div');
+    label.style.cssText = `
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 18px;
+      border-radius: 16px;
+      background: rgba(11, 39, 27, 0.85);
+      color: ${COLORS.ui.text};
+      font-family: 'Nunito', 'Nunito Sans', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 6px 18px rgba(6, 20, 14, 0.45);
+    `;
+    this.hubHoverLabel = label;
+    this.ranchScene3DContainer.appendChild(label);
+  }
+
+  private updateHubHover(id: string | null) {
+    if (this.currentHubHoverId === id) {
+      return;
+    }
+
+    this.currentHubHoverId = id;
+    if (!this.hubHoverLabel) {
+      this.ensureHubHoverLabel();
+    }
+
+    if (this.hubHoverLabel) {
+      if (id && this.hubInteractions[id]) {
+        this.hubHoverLabel.textContent = `Clique para acessar ${this.hubInteractions[id].label}`;
+        this.hubHoverLabel.style.opacity = '1';
+        document.body.style.cursor = 'pointer';
+      } else {
+        this.hubHoverLabel.style.opacity = '0';
+        document.body.style.cursor = '';
+      }
+    }
+  }
+
+  private handleHubInteraction(id: string) {
+    const interaction = this.hubInteractions[id];
+    if (!interaction) {
+      return;
+    }
+
+    this.updateHubHover(null);
+    interaction.action();
+  }
+
   // Call this when UI is destroyed or beast changes significantly
   public dispose() {
     this.cleanup3DMiniViewer();
@@ -212,6 +322,7 @@ export class GameUI {
     // Stop ranch scene 3D loop to save resources when hidden
     if (this.ranchScene3D) {
       this.ranchScene3D.stopLoop();
+      this.ranchScene3D.clearHover();
       console.log('[GameUI] Ranch Scene 3D loop stopped');
     }
     
@@ -219,6 +330,8 @@ export class GameUI {
       this.ranchScene3DContainer.style.display = 'none';
       console.log('[GameUI] Ranch Scene 3D hidden');
     }
+
+    this.updateHubHover(null);
   }
 
   // Public method to show 3D viewer when returning to ranch

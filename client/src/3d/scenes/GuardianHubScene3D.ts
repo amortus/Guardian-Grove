@@ -34,6 +34,7 @@ interface WaterSegment {
 }
 
 interface VillageStructure {
+  id: string;
   model: string;
   position: Vec3;
   rotation?: number;
@@ -46,6 +47,13 @@ interface InteractiveObject {
   radius: number;
 }
 
+interface InteractableEntry {
+  id: string;
+  mesh: THREE.Object3D;
+  sprite: THREE.Sprite;
+  target: THREE.Vector3;
+}
+
 const WORLD_Y_OFFSET = -1.15;
 
 const TREE_HOUSE_POSITION: Vec3 = [-5.4, 0, -2.4];
@@ -54,12 +62,14 @@ const TREE_HOUSE_DOOR_HEIGHT = 2.2;
 
 const CABIN_STRUCTURES: VillageStructure[] = [
   {
+    id: 'temple',
     model: '/assets/3d/Village/Temple.glb',
     position: [4.6, 0, 0.9],
     rotation: Math.PI * 0.15,
     scale: 0.95,
   },
   {
+    id: 'tavern',
     model: '/assets/3d/Village/Tavern.glb',
     position: [2.6, 0, 3.2],
     rotation: -Math.PI * 0.1,
@@ -103,6 +113,11 @@ const WALKWAY_NODES: Vec2[] = [
 const WALKWAY_RADIUS = 2.1;
 const WALKWAY_COLOR = 0xe8d5a0;
 
+const INTERACTIVE_OBJECT_MAP: Record<string, InteractiveObject> = INTERACTIVE_OBJECTS.reduce((acc, obj) => {
+  acc[obj.id] = obj;
+  return acc;
+}, {} as Record<string, InteractiveObject>);
+
 export class GuardianHubScene3D {
   private threeScene: ThreeScene;
   private gltfLoader = new GLTFLoader();
@@ -122,6 +137,14 @@ export class GuardianHubScene3D {
   private elapsedTime = 0;
 
   private obstacles: ObstacleCircle[] = [];
+  private interactables: InteractableEntry[] = [];
+  private hoveredInteractable: string | null = null;
+  private interactionCallback?: (id: string) => void;
+  private hoverCallback?: (id: string | null) => void;
+  private pendingInteraction: { id: string; target: THREE.Vector3 } | null = null;
+  private particlesSystem: THREE.Points | null = null;
+  private raycaster = new THREE.Raycaster();
+  private pointer = new THREE.Vector2();
 
   constructor(canvas: HTMLCanvasElement) {
     this.threeScene = new ThreeScene(canvas);
@@ -147,6 +170,10 @@ export class GuardianHubScene3D {
   private rebuildDecorations() {
     this.clearDecorations();
 
+    this.interactables = [];
+    this.hoveredInteractable = null;
+    this.pendingInteraction = null;
+
     this.decorationsRoot = new THREE.Group();
     this.decorationsRoot.position.y = WORLD_Y_OFFSET;
     this.threeScene.addObject(this.decorationsRoot);
@@ -160,12 +187,21 @@ export class GuardianHubScene3D {
     this.createMissionBoard();
     this.createBridge();
     this.createNatureProps();
+    this.createAmbientParticles();
     this.setupObstacles();
   }
 
   private clearDecorations() {
     this.waterSegments.forEach((segment) => segment.dispose());
     this.waterSegments = [];
+
+     if (this.particlesSystem && this.decorationsRoot) {
+      this.decorationsRoot.remove(this.particlesSystem);
+    }
+    this.particlesSystem = null;
+    this.interactables = [];
+    this.hoveredInteractable = null;
+    this.pendingInteraction = null;
 
     if (this.decorationsRoot) {
       this.disposeObject(this.decorationsRoot);
@@ -262,6 +298,7 @@ export class GuardianHubScene3D {
       onLoaded: (group) => {
         this.decorateTreeHouse(group);
         this.obstacles.push({ position: [TREE_HOUSE_POSITION[0], TREE_HOUSE_POSITION[2]], radius: 2.8 });
+        this.registerInteractable('tree_house', group, new THREE.Vector3(TREE_HOUSE_POSITION[0] + 1.4, 0, TREE_HOUSE_POSITION[2] - 0.6));
       },
     });
   }
@@ -295,11 +332,13 @@ export class GuardianHubScene3D {
         scaleMultiplier: structure.scale ?? 1,
         name: 'guardian-cabin',
         verticalOffset: -0.25,
-        onLoaded: () => {
+        onLoaded: (group) => {
           this.obstacles.push({
             position: [structure.position[0], structure.position[2]],
             radius: 2.0,
           });
+          const target = new THREE.Vector3(structure.position[0] - 1.2, 0, structure.position[2] + 0.8);
+          this.registerInteractable(structure.id, group, target);
         },
       });
     });
@@ -351,6 +390,7 @@ export class GuardianHubScene3D {
     this.addDecoration(group);
 
     this.obstacles.push({ position: [5.0, 3.6], radius: 1.2 });
+    this.registerInteractable('craft_well', group, new THREE.Vector3(4.2, 0, 2.8));
   }
 
   private createMissionBoard() {
@@ -382,6 +422,7 @@ export class GuardianHubScene3D {
     this.addDecoration(group);
 
     this.obstacles.push({ position: [-6.6, -0.6], radius: 1.2 });
+    this.registerInteractable('mission_board', group, new THREE.Vector3(-5.6, 0, -1.2));
   }
 
   private createBridge() {
@@ -471,6 +512,91 @@ export class GuardianHubScene3D {
     });
   }
 
+  private createAmbientParticles() {
+    if (!this.decorationsRoot) {
+      return;
+    }
+
+    const count = 140;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const initial = new Float32Array(count * 3);
+    const offsets = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      const radius = 5 + Math.random() * 5;
+      const angle = Math.random() * Math.PI * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      const y = 1.4 + Math.random() * 2.5;
+
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+
+      initial[i * 3] = x;
+      initial[i * 3 + 1] = y;
+      initial[i * 3 + 2] = z;
+      offsets[i] = Math.random() * Math.PI * 2;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const texture = this.createRadialTexture(64, [
+      { offset: 0, color: 'rgba(255,255,255,0.9)' },
+      { offset: 0.4, color: 'rgba(255,255,255,0.4)' },
+      { offset: 1, color: 'rgba(255,255,255,0)' },
+    ]);
+
+    const material = new THREE.PointsMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.85,
+      color: 0xcfffd6,
+      size: 0.28,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    this.particlesSystem = new THREE.Points(geometry, material);
+    this.particlesSystem.position.y = WORLD_Y_OFFSET + 0.8;
+    this.particlesSystem.userData.initialPositions = initial;
+    this.particlesSystem.userData.offsets = offsets;
+
+    this.decorationsRoot.add(this.particlesSystem);
+  }
+
+  private updateAmbientParticles() {
+    if (!this.particlesSystem) {
+      return;
+    }
+
+    const geometry = this.particlesSystem.geometry as THREE.BufferGeometry;
+    const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const initial = this.particlesSystem.userData.initialPositions as Float32Array;
+    const offsets = this.particlesSystem.userData.offsets as Float32Array;
+
+    if (!positions || !initial || !offsets) {
+      return;
+    }
+
+    for (let i = 0; i < positions.count; i++) {
+      const baseX = initial[i * 3];
+      const baseY = initial[i * 3 + 1];
+      const baseZ = initial[i * 3 + 2];
+      const offset = offsets[i];
+
+      const swayX = Math.sin(this.elapsedTime * 0.6 + offset) * 0.18;
+      const swayY = Math.sin(this.elapsedTime * 0.9 + offset) * 0.22;
+      const swayZ = Math.cos(this.elapsedTime * 0.5 + offset) * 0.18;
+
+      positions.setXYZ(i, baseX + swayX, baseY + swayY, baseZ + swayZ);
+    }
+
+    positions.needsUpdate = true;
+  }
+
   private setupObstacles() {
     // Already populated while creating props, but make sure key interactables are present
     INTERACTIVE_OBJECTS.forEach((obj) => {
@@ -496,6 +622,34 @@ export class GuardianHubScene3D {
           (material as THREE.Material).dispose();
         }
       }
+    });
+  }
+
+  private registerInteractable(id: string, mesh: THREE.Object3D, interactionTarget?: THREE.Vector3) {
+    const interactiveInfo = INTERACTIVE_OBJECT_MAP[id];
+    const target = interactionTarget
+      ? interactionTarget.clone()
+      : interactiveInfo
+      ? new THREE.Vector3(interactiveInfo.position[0], 0, interactiveInfo.position[2])
+      : new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
+
+    mesh.updateWorldMatrix(true, false);
+
+    const bounds = new THREE.Box3().setFromObject(mesh);
+    const center = bounds.getCenter(new THREE.Vector3());
+    mesh.worldToLocal(center);
+
+    const sprite = this.createHintSprite();
+    sprite.position.copy(center);
+    sprite.position.y = bounds.getSize(new THREE.Vector3()).y * 0.6 + 0.5;
+    sprite.visible = false;
+    mesh.add(sprite);
+
+    this.interactables.push({
+      id,
+      mesh,
+      sprite,
+      target,
     });
   }
 
@@ -576,6 +730,88 @@ export class GuardianHubScene3D {
     }
   }
 
+  public setInteractionCallback(callback: (id: string) => void) {
+    this.interactionCallback = callback;
+  }
+
+  public setHoverCallback(callback: (id: string | null) => void) {
+    this.hoverCallback = callback;
+  }
+
+  public handlePointerMove(clientX: number, clientY: number, rect: DOMRect): string | null {
+    const entry = this.pickInteractable(clientX, clientY, rect);
+    const hoveredId = entry?.id ?? null;
+
+    if (hoveredId !== this.hoveredInteractable) {
+      this.hoveredInteractable = hoveredId;
+      this.updateInteractableHighlight(hoveredId);
+      this.hoverCallback?.(hoveredId);
+    }
+
+    return hoveredId;
+  }
+
+  public handlePointerClick(clientX: number, clientY: number, rect: DOMRect): string | null {
+    const entry = this.pickInteractable(clientX, clientY, rect);
+    if (!entry) {
+      return null;
+    }
+
+    this.pendingInteraction = { id: entry.id, target: entry.target.clone() };
+    this.currentTarget = entry.target.clone();
+    this.isMoving = true;
+    this.playRigAnimation('walk');
+    this.updateInteractableHighlight(entry.id);
+    this.hoverCallback?.(entry.id);
+
+    return entry.id;
+  }
+
+  public clearHover() {
+    this.hoveredInteractable = null;
+    this.updateInteractableHighlight(null);
+    this.hoverCallback?.(null);
+  }
+
+  private pickInteractable(clientX: number, clientY: number, rect: DOMRect): InteractableEntry | null {
+    if (!this.interactables.length) {
+      return null;
+    }
+
+    this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
+    this.raycaster.setFromCamera(this.pointer, camera);
+
+    const meshes = this.interactables.map((item) => item.mesh);
+    const intersects = this.raycaster.intersectObjects(meshes, true);
+    if (!intersects.length) {
+      return null;
+    }
+
+    const intersected = intersects[0].object;
+    return this.findInteractableFromObject(intersected);
+  }
+
+  private findInteractableFromObject(object: THREE.Object3D): InteractableEntry | null {
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      const entry = this.interactables.find((item) => item.mesh === current);
+      if (entry) {
+        return entry;
+      }
+      current = current.parent;
+    }
+    return null;
+  }
+
+  private updateInteractableHighlight(hoverId: string | null) {
+    this.interactables.forEach((entry) => {
+      entry.sprite.visible = entry.id === hoverId;
+    });
+  }
+
   public update(delta: number) {
     this.elapsedTime += delta;
 
@@ -587,6 +823,7 @@ export class GuardianHubScene3D {
     }
 
     this.updateBeastMovement(delta);
+    this.updateAmbientParticles();
 
     const scene = this.threeScene.getScene();
     this.threeScene.updateDayNightLighting();
@@ -603,7 +840,11 @@ export class GuardianHubScene3D {
 
     this.nextMoveTime -= delta;
 
-    if (!this.isMoving && this.nextMoveTime <= 0) {
+    if (!this.isMoving && this.pendingInteraction) {
+      this.currentTarget = this.pendingInteraction.target.clone();
+      this.isMoving = true;
+      this.playRigAnimation('walk');
+    } else if (!this.isMoving && this.nextMoveTime <= 0) {
       const nextTarget = this.chooseNextTarget(this.beastGroup.position);
       if (nextTarget) {
         this.currentTarget = nextTarget;
@@ -623,8 +864,16 @@ export class GuardianHubScene3D {
       if (distance < 0.1) {
         this.isMoving = false;
         this.currentTarget = null;
-        this.nextMoveTime = 2.5 + Math.random() * 1.8;
         this.playRigAnimation('idle');
+
+        if (this.pendingInteraction && this.interactionCallback) {
+          const id = this.pendingInteraction.id;
+          this.pendingInteraction = null;
+          this.interactionCallback(id);
+          this.nextMoveTime = 2.0 + Math.random() * 1.2;
+        } else {
+          this.nextMoveTime = 2.5 + Math.random() * 1.8;
+        }
         return;
       }
 
@@ -632,6 +881,47 @@ export class GuardianHubScene3D {
       current.addScaledVector(direction, speed * delta);
       this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
     }
+  }
+
+  private createHintSprite(): THREE.Sprite {
+    const texture = this.createRadialTexture(64, [
+      { offset: 0, color: 'rgba(255,244,200,1)' },
+      { offset: 0.4, color: 'rgba(255,224,140,0.75)' },
+      { offset: 1, color: 'rgba(255,200,90,0)' },
+    ]);
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.85,
+      color: 0xf4ca64,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(1.4, 1.4, 1.4);
+    return sprite;
+  }
+
+  private createRadialTexture(size: number, stops: Array<{ offset: number; color: string }>): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Failed to get canvas rendering context');
+    }
+
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    for (const stop of stops) {
+      gradient.addColorStop(stop.offset, stop.color);
+    }
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   private chooseNextTarget(current: THREE.Vector3): THREE.Vector3 | null {
