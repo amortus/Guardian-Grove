@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "ts-node src/db/migrate.ts",
     "migrate:friends": "ts-node src/db/run-friends-migration.ts",
+    "db:wipe": "ts-node src/db/wipe-db.ts",
     "vercel-build": "tsc"
   },
   "dependencies": {
