@@ -106,8 +106,8 @@ export function getDayNightBlend(): number {
  */
 export function getAmbientLightIntensity(): number {
   const blend = getDayNightBlend();
-  // Dia: 1.0, Noite: 0.2 (mantém visibilidade mínima)
-  return 1.0 - (blend * 0.8);
+  // Dia: 1.0, Noite: 0.4 (mais claro à noite)
+  return 1.0 - (blend * 0.6);
 }
 
 /**
@@ -120,7 +120,7 @@ export function getSkyColor(): { r: number; g: number; b: number } {
   const daySky = { r: 135 / 255, g: 206 / 255, b: 250 / 255 }; // Sky blue
   
   // Céu noturno (azul escuro/roxo)
-  const nightSky = { r: 25 / 255, g: 25 / 255, b: 50 / 255 }; // Dark blue/purple
+  const nightSky = { r: 60 / 255, g: 82 / 255, b: 130 / 255 }; // Gentle moonlit blue
   
   // Interpolar entre dia e noite
   return {

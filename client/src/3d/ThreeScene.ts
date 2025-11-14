@@ -98,7 +98,7 @@ export class ThreeScene {
     
     if (this.ambientLight) {
       // Ambiente: dia (0.7) -> noite (0.2)
-      this.ambientLight.intensity = 0.2 + (0.5 * (1 - blend));
+      this.ambientLight.intensity = 0.35 + (0.35 * (1 - blend));
       
       // Cor ambiente: dia (azul claro) -> noite (azul escuro)
       const dayColor = 0xf0f6ff;
@@ -110,7 +110,7 @@ export class ThreeScene {
     
     if (this.keyLight) {
       // Sol: dia (1.15) -> noite (0.1, quase apagado)
-      this.keyLight.intensity = 0.1 + (1.05 * (1 - blend));
+      this.keyLight.intensity = 0.25 + (0.9 * (1 - blend));
       
       // Cor do sol: dia (branco) -> noite (azul escuro)
       const daySunColor = 0xffffff;
@@ -127,7 +127,7 @@ export class ThreeScene {
     
     if (this.rimLight) {
       // Rim light: dia (0.35) -> noite (0.05)
-      this.rimLight.intensity = 0.05 + (0.3 * (1 - blend));
+      this.rimLight.intensity = 0.12 + (0.23 * (1 - blend));
       
       // Cor rim: dia (amarelo claro) -> noite (azul escuro)
       const dayRimColor = 0xfff4d2;

@@ -56,62 +56,61 @@ interface InteractableEntry {
 
 const WORLD_Y_OFFSET = -1.15;
 
-const TREE_HOUSE_POSITION: Vec3 = [-5.4, 0, -2.4];
-const TREE_HOUSE_SCALE = 3.2;
+const TREE_HOUSE_POSITION: Vec3 = [-3.2, 0, -0.2];
+const TREE_HOUSE_SCALE = 3.4;
 const TREE_HOUSE_DOOR_HEIGHT = 2.2;
 
 const CABIN_STRUCTURES: VillageStructure[] = [
   {
     id: 'temple',
     model: '/assets/3d/Village/Temple.glb',
-    position: [4.6, 0, 0.9],
-    rotation: Math.PI * 0.15,
+    position: [3.6, 0, -0.4],
+    rotation: Math.PI * 0.12,
     scale: 0.95,
   },
   {
     id: 'tavern',
     model: '/assets/3d/Village/Tavern.glb',
-    position: [2.6, 0, 3.2],
-    rotation: -Math.PI * 0.1,
-    scale: 0.85,
+    position: [3.1, 0, 2.2],
+    rotation: -Math.PI * 0.08,
+    scale: 0.9,
   },
 ];
 
 const WATER_SEGMENTS: WaterSegment[] = [
-  { position: [1.2, 0, 1.8], radius: 1.4, scaleX: 1.6, scaleZ: 1.0, rotation: Math.PI * 0.05 },
-  { position: [2.6, 0, 2.4], radius: 1.2, scaleX: 1.8, scaleZ: 1.0, rotation: -Math.PI * 0.05 },
-  { position: [3.8, 0, 2.8], radius: 1.0, scaleX: 1.6, scaleZ: 0.9, rotation: -Math.PI * 0.02 },
+  { position: [-0.5, 0, 1.2], radius: 1.3, scaleX: 1.4, scaleZ: 1.0, rotation: Math.PI * 0.04 },
+  { position: [1.2, 0, 1.8], radius: 1.2, scaleX: 1.5, scaleZ: 0.9, rotation: -Math.PI * 0.02 },
+  { position: [2.6, 0, 2.4], radius: 1.1, scaleX: 1.6, scaleZ: 0.9, rotation: -Math.PI * 0.06 },
 ];
 
 const WALKABLE_ZONES: WalkableZone[] = [
-  { position: [-5.2, -2.2], radius: 2.6 },
-  { position: [-2.3, -1.5], radius: 2.8 },
-  { position: [0.0, -0.4], radius: 3.0 },
-  { position: [2.2, 0.8], radius: 2.7 },
-  { position: [4.4, 1.6], radius: 2.6 },
+  { position: [-3.6, -0.8], radius: 2.4 },
+  { position: [-1.6, -0.2], radius: 2.6 },
+  { position: [0.6, 0.4], radius: 2.5 },
+  { position: [2.0, 1.2], radius: 2.4 },
+  { position: [3.4, 2.0], radius: 2.2 },
 ];
 
 const INTERACTIVE_OBJECTS: InteractiveObject[] = [
-  { id: 'mission_board', position: [-6.6, 0, -0.6], radius: 1.1 },
-  { id: 'craft_well', position: [5.0, 0, 3.6], radius: 1.0 },
+  { id: 'mission_board', position: [-4.3, 0, -1.0], radius: 1.0 },
+  { id: 'craft_well', position: [3.4, 0, 2.6], radius: 1.0 },
   { id: 'tree_house', position: TREE_HOUSE_POSITION, radius: 2.6 },
   { id: 'tavern', position: CABIN_STRUCTURES[1].position, radius: 1.8 },
   { id: 'temple', position: CABIN_STRUCTURES[0].position, radius: 1.9 },
 ];
 
 const WALKWAY_NODES: Vec2[] = [
-  [-6.4, -2.1],
-  [-4.8, -2.4],
-  [-3.4, -1.8],
-  [-1.2, -1.2],
-  [0.6, -0.2],
-  [2.4, 1.0],
-  [4.2, 1.6],
-  [5.4, 2.4],
+  [-4.4, -1.4],
+  [-2.8, -0.8],
+  [-1.2, -0.3],
+  [0.4, 0.4],
+  [2.0, 1.2],
+  [3.2, 2.2],
+  [3.8, 3.0],
 ];
 
-const WALKWAY_RADIUS = 2.1;
-const WALKWAY_COLOR = 0xe8d5a0;
+const WALKWAY_RADIUS = 1.8;
+const WALKWAY_COLOR = 0xf3e3bb;
 
 const INTERACTIVE_OBJECT_MAP: Record<string, InteractiveObject> = INTERACTIVE_OBJECTS.reduce((acc, obj) => {
   acc[obj.id] = obj;
@@ -233,8 +232,8 @@ export class GuardianHubScene3D {
     geometry.computeVertexNormals();
 
     const material = new THREE.MeshStandardMaterial({
-      color: 0x4f7d4c,
-      roughness: 0.85,
+      color: 0x5f9c5b,
+      roughness: 0.8,
       metalness: 0.04,
     });
 
@@ -350,7 +349,7 @@ export class GuardianHubScene3D {
 
   private createWell() {
     const group = new THREE.Group();
-    group.position.set(5.0, WORLD_Y_OFFSET + 0.05, 3.6);
+    group.position.set(3.4, WORLD_Y_OFFSET + 0.05, 2.6);
 
     const baseGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.7, 24);
     const baseMaterial = new THREE.MeshStandardMaterial({
@@ -393,47 +392,47 @@ export class GuardianHubScene3D {
 
     this.addDecoration(group);
 
-    this.obstacles.push({ position: [5.0, 3.6], radius: 1.2 });
-    this.registerInteractable('craft_well', group, new THREE.Vector3(4.2, 0, 2.8));
+    this.obstacles.push({ position: [3.4, 2.6], radius: 1.1 });
+    this.registerInteractable('craft_well', group, new THREE.Vector3(2.8, 0, 2.1));
   }
 
   private createMissionBoard() {
-    const position: Vec3 = [-6.6, WORLD_Y_OFFSET + 0.02, -0.6];
+    const position: Vec3 = [-4.3, WORLD_Y_OFFSET + 0.02, -1.0];
     this.loadStaticModel('/assets/3d/Village/Mission.glb', {
       position,
-      rotationY: Math.PI * 0.32,
+      rotationY: Math.PI * 0.18,
       targetHeight: 2.9,
-      scaleMultiplier: 1,
+      scaleMultiplier: 1.02,
       name: 'guardian-mission-board',
       onLoaded: (group) => {
         group.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.material = child.material.clone();
             if ('roughness' in child.material) {
-              (child.material as THREE.MeshStandardMaterial).roughness = 0.58;
+              (child.material as THREE.MeshStandardMaterial).roughness = 0.52;
             }
             if ('metalness' in child.material) {
-              (child.material as THREE.MeshStandardMaterial).metalness = 0.05;
+              (child.material as THREE.MeshStandardMaterial).metalness = 0.06;
             }
           }
         });
-        const boardLight = new THREE.PointLight(0xfff0b0, 0.95, 6.5, 2.1);
-        boardLight.position.set(-0.15, 2.15, 0.35);
+        const boardLight = new THREE.PointLight(0xfff4bc, 0.85, 6.5, 2.1);
+        boardLight.position.set(-0.1, 2.05, 0.3);
         group.add(boardLight);
 
-        this.registerInteractable('mission_board', group, new THREE.Vector3(-5.6, 0, -1.2));
+        this.registerInteractable('mission_board', group, new THREE.Vector3(-3.6, 0, -1.4));
       },
     });
-    this.obstacles.push({ position: [-6.6, -0.6], radius: 1.2 });
+    this.obstacles.push({ position: [-4.3, -1.0], radius: 1.0 });
   }
 
   private createBridge() {
     const group = new THREE.Group();
-    group.position.set(2.0, WORLD_Y_OFFSET + 0.02, 2.2);
-    group.rotation.y = Math.PI * 0.06;
+    group.position.set(0.8, WORLD_Y_OFFSET + 0.02, 1.6);
+    group.rotation.y = Math.PI * 0.12;
 
     const plankMaterial = new THREE.MeshStandardMaterial({ color: 0xb7834f, roughness: 0.75 });
-    const plankGeometry = new THREE.BoxGeometry(2.4, 0.08, 1.2);
+    const plankGeometry = new THREE.BoxGeometry(2.2, 0.08, 1.1);
     const deck = new THREE.Mesh(plankGeometry, plankMaterial);
     deck.receiveShadow = true;
     deck.castShadow = true;
@@ -455,12 +454,12 @@ export class GuardianHubScene3D {
 
   private createNatureProps() {
     const flowerPositions: Vec3[] = [
-      [-3.6, 0, -2.6],
-      [-3.0, 0, -1.8],
-      [-0.8, 0, -1.4],
-      [1.4, 0, 0.6],
-      [3.4, 0, 1.4],
-      [4.6, 0, 2.4],
+      [-3.4, 0, -0.8],
+      [-2.2, 0, -0.2],
+      [-0.6, 0, 0.6],
+      [1.2, 0, 1.4],
+      [2.8, 0, 2.1],
+      [3.6, 0, 3.0],
     ];
 
     flowerPositions.forEach((pos, index) => {
@@ -475,11 +474,11 @@ export class GuardianHubScene3D {
     });
 
     const rockPositions: Vec3[] = [
-      [-4.4, 0, 0.4],
-      [-2.4, 0, -0.2],
-      [0.8, 0, 1.4],
-      [3.0, 0, -0.8],
-      [5.4, 0, -0.2],
+      [-3.6, 0, 0.3],
+      [-2.4, 0, -0.9],
+      [-0.4, 0, 0.2],
+      [1.8, 0, 0.9],
+      [3.2, 0, 2.5],
     ];
 
     rockPositions.forEach((pos, index) => {
@@ -495,10 +494,10 @@ export class GuardianHubScene3D {
     });
 
     const treePositions: Vec3[] = [
-      [-2.0, 0, 1.8],
-      [-0.4, 0, 2.6],
-      [3.6, 0, -1.6],
-      [5.2, 0, 0.2],
+      [-1.2, 0, 1.8],
+      [0.6, 0, 2.6],
+      [3.8, 0, -0.8],
+      [4.6, 0, 1.4],
     ];
 
     treePositions.forEach((pos, index) => {
@@ -533,10 +532,10 @@ export class GuardianHubScene3D {
       return light;
     };
 
-    addLight(new THREE.Vector3(-5.2, WORLD_Y_OFFSET + 2.6, -2.4), 0xffdc9a, 0.7, 7);
-    addLight(new THREE.Vector3(5.0, WORLD_Y_OFFSET + 2.3, 3.6), 0x7ad8ff, 0.6, 6.5, 2.4);
-    addLight(new THREE.Vector3(2.8, WORLD_Y_OFFSET + 2.8, 3.0), 0xffdeb5, 0.55, 7.5, 2.2);
-    addLight(new THREE.Vector3(4.4, WORLD_Y_OFFSET + 3.2, 0.9), 0xcde8ff, 0.45, 8.5, 2.4);
+    addLight(new THREE.Vector3(-3.2, WORLD_Y_OFFSET + 2.6, -0.2), 0xffe4a8, 0.9, 7.5);
+    addLight(new THREE.Vector3(3.4, WORLD_Y_OFFSET + 2.4, 2.6), 0x8fe3ff, 0.75, 7.0, 2.2);
+    addLight(new THREE.Vector3(2.4, WORLD_Y_OFFSET + 2.8, -0.2), 0xfff1c8, 0.6, 7.8, 2.3);
+    addLight(new THREE.Vector3(-0.3, WORLD_Y_OFFSET + 2.4, 1.4), 0xcdf2ff, 0.55, 7.5, 2.3);
 
     const fireflyMaterial = new THREE.MeshBasicMaterial({ color: 0xfcefb4 });
     const fireflyGeometry = new THREE.SphereGeometry(0.06, 8, 8);
@@ -551,9 +550,9 @@ export class GuardianHubScene3D {
       this.decorationsRoot?.add(light);
     };
 
-    addFirefly(-3.2, WORLD_Y_OFFSET + 2.4, -1.8);
-    addFirefly(0.6, WORLD_Y_OFFSET + 2.1, -0.4, 0.35);
-    addFirefly(3.4, WORLD_Y_OFFSET + 2.6, 1.4, 0.4);
+    addFirefly(-2.8, WORLD_Y_OFFSET + 2.3, -0.9, 0.45);
+    addFirefly(-0.4, WORLD_Y_OFFSET + 2.1, 0.6, 0.38);
+    addFirefly(2.2, WORLD_Y_OFFSET + 2.5, 1.8, 0.42);
   }
 
   private createAmbientParticles() {
