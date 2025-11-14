@@ -925,7 +925,7 @@ function handleLogout() {
   });
 }
 
-async function loadGameFromServer() {
+async function loadGameFromServer(isRetry: boolean = false) {
   try {
     loadingEl.textContent = 'Carregando seu jogo...';
     loadingEl.style.display = 'block';
@@ -1090,10 +1090,35 @@ async function loadGameFromServer() {
     
   } catch (error: any) {
     console.error('[Game] Failed to load from server:', error);
-    if (error.message.includes('No game save found')) {
-      handleGameInitializationFailure(
-        'Não encontramos os dados iniciais da sua jornada. Vamos recarregar para tentar novamente.'
-      );
+    const errorMessage = error?.message ?? '';
+    if (!isRetry && errorMessage.includes('No game save found')) {
+      try {
+        console.warn('[Game] Nenhum save encontrado. Tentando inicializar automaticamente...');
+        const fallbackName =
+          localStorage.getItem('username') ||
+          localStorage.getItem('display_name') ||
+          'Guardião';
+
+        const initResponse = await gameApi.initializeGame(fallbackName);
+
+        if (initResponse.success) {
+          console.log('[Game] Game save criado automaticamente. Recarregando dados...');
+          await loadGameFromServer(true);
+          return;
+        }
+
+        console.error('[Game] Falha ao criar game save automaticamente:', initResponse.error);
+        handleGameInitializationFailure(
+          initResponse.error ||
+            'Não encontramos os dados iniciais da sua jornada e não foi possível criar um novo guardião automaticamente.'
+        );
+      } catch (initError: any) {
+        console.error('[Game] Erro ao criar game save automaticamente:', initError);
+        handleGameInitializationFailure(
+          initError?.message ||
+            'Não encontramos os dados iniciais da sua jornada e não foi possível criar um novo guardião automaticamente.'
+        );
+      }
     } else {
       errorEl.textContent = 'Erro ao carregar jogo do servidor';
       errorEl.style.display = 'block';
