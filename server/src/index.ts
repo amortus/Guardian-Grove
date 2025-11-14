@@ -14,6 +14,7 @@ import gameRoutes from './routes/game';
 import friendsRoutes from './routes/friends';
 import inventoryRoutes from './routes/inventory';
 import progressRoutes from './routes/progress';
+import hubRoutes from './routes/hub';
 import { pool } from './db/connection';
 import { runMigrations } from './db/migrate';
 import { startEventScheduler } from './services/eventScheduler';
@@ -104,6 +105,9 @@ app.use('/api/progress', progressRoutes);
 
 // Friends routes
 app.use('/api/friends', friendsRoutes);
+
+// Hub routes (ghost system)
+app.use('/api/hub', hubRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

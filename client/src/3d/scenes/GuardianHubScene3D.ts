@@ -14,13 +14,14 @@ const WORLD_Y_OFFSET = -1.15;
 
 export class GuardianHubScene3D {
   private threeScene: ThreeScene;
+  private canvas: HTMLCanvasElement;
   private decorationsRoot: THREE.Group | null = null;
   private walkableGround: THREE.Mesh | null = null;
   private beastModel: BeastModel | null = null;
   private beastGroup: THREE.Group | null = null;
   private activeRigAnimation: 'idle' | 'walk' | null = null;
   private idleAnimation: (() => void) | null = null;
-  private baseYPosition = WORLD_Y_OFFSET;
+  private baseYPosition = WORLD_Y_OFFSET - 0.46;
   private needsFit = false;
   private isMoving = false;
   private currentTarget: THREE.Vector3 | null = null;
@@ -33,9 +34,44 @@ export class GuardianHubScene3D {
   private particlesSystem: THREE.Points | null = null;
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
+  private cameraOffset = new THREE.Vector3(0, 5.8, 10.4);
+  private cameraFollowStrength = 0.12;
+  
+  // Ghost system (other players)
+  private ghostPlayers: Map<string, {
+    model: BeastModel;
+    group: THREE.Group;
+    nametag: THREE.Sprite;
+  }> = new Map();
+  private lastPositionSaveTime = 0;
+  private lastGhostFetchTime = 0;
 
   constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.threeScene = new ThreeScene(canvas);
+
+    // eslint-disable-next-line no-console
+    console.log('[GuardianHubScene3D] constructor - canvas attached');
+
+    // Fallback forte: escutar cliques em toda a janela e redirecionar
+    // para a cena 3D quando o clique cair dentro da área do canvas.
+    window.addEventListener('click', (event: MouseEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const insideX = event.clientX >= rect.left && event.clientX <= rect.right;
+      const insideY = event.clientY >= rect.top && event.clientY <= rect.bottom;
+      if (!insideX || !insideY) {
+        return;
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('[GuardianHubScene3D] Global click dentro do canvas', {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      });
+
+      this.handlePointerClick(event.clientX, event.clientY, rect);
+    });
     this.setupEnvironment();
   }
 
@@ -398,14 +434,15 @@ export class GuardianHubScene3D {
 
     this.beastModel = new BeastModel(beastLine);
     this.beastGroup = this.beastModel.getGroup();
-    this.needsFit = true;
-    this.baseYPosition = WORLD_Y_OFFSET; // Personagem em cima do chão
+    this.needsFit = false; // Não usar fitBeastToScene, posição manual
     this.isMoving = false;
     this.currentTarget = null;
     this.nextMoveTime = 1.5 + Math.random() * 1.5;
     this.activeRigAnimation = null;
 
-    this.beastGroup.position.set(-4.6, WORLD_Y_OFFSET, -2.0);
+    // Posição manual: colocar o Feralis no centro da ilha (0,0) com Y ajustado para os pés ficarem no chão
+    // WORLD_Y_OFFSET = 0.48, ajustando Y para os pés encostarem no chão
+    this.beastGroup.position.set(0, WORLD_Y_OFFSET - 1.1, 0);
     this.threeScene.addObject(this.beastGroup);
 
     if (this.beastModel.hasRiggedAnimations()) {
@@ -446,7 +483,11 @@ export class GuardianHubScene3D {
   public handlePointerClick(clientX: number, clientY: number, rect: DOMRect): string | null {
     // Debug para entender porque o clique não está movendo o guardião
     // eslint-disable-next-line no-console
-    console.log('[GuardianHubScene3D] handlePointerClick', { clientX, clientY, rect });
+    console.log('[GuardianHubScene3D] handlePointerClick', {
+      clientX,
+      clientY,
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+    });
 
     this.preparePointer(clientX, clientY, rect);
     const entry = this.pickInteractable();
@@ -462,13 +503,13 @@ export class GuardianHubScene3D {
 
     const target = this.projectRayToWalkable();
     if (!target) {
-      // eslint-disable-next-line no-console
-      console.log('[GuardianHubScene3D] Nenhum ponto walkable encontrado para o clique');
-      return null;
+      // Fallback: tenta sempre andar para o centro da cena para garantir que o movimento funciona
+      this.currentTarget = new THREE.Vector3(0, WORLD_Y_OFFSET, 0);
+    } else {
+      // No pendingInteraction, manualControl, or interactionCallback here
+      this.currentTarget = target.clone();
     }
 
-    // No pendingInteraction, manualControl, or interactionCallback here
-    this.currentTarget = target.clone();
     this.isMoving = true;
     this.playRigAnimation('walk');
     this.updateInteractableHighlight(null);
@@ -500,8 +541,6 @@ export class GuardianHubScene3D {
 
   private projectRayToWalkable(): THREE.Vector3 | null {
     if (!this.walkableGround) {
-      // eslint-disable-next-line no-console
-      console.log('[GuardianHubScene3D] walkableGround ausente na hora do clique');
       return null;
     }
 
@@ -513,8 +552,6 @@ export class GuardianHubScene3D {
 
     const point = hits[0].point;
     const projected = new THREE.Vector3(point.x, WORLD_Y_OFFSET, point.z);
-    // eslint-disable-next-line no-console
-    console.log('[GuardianHubScene3D] Clique projetado no chão', { point, projected });
     return projected;
   }
 
@@ -530,6 +567,8 @@ export class GuardianHubScene3D {
 
     this.updateBeastMovement(delta);
     this.updateAmbientParticles();
+    this.updateCameraFollow();
+    this.updateGhostSystem(delta);
 
     const scene = this.threeScene.getScene();
     this.threeScene.updateDayNightLighting();
@@ -562,9 +601,15 @@ export class GuardianHubScene3D {
     }
 
     if (this.isMoving && this.currentTarget) {
-      const speed = 1.25;
+      const speed = 2.0;
       const current = this.beastGroup.position;
-      const direction = new THREE.Vector3().subVectors(this.currentTarget, current);
+
+      // Movimentação apenas no plano XZ (altura controlada por fitBeastToScene)
+      const direction = new THREE.Vector3(
+        this.currentTarget.x - current.x,
+        0,
+        this.currentTarget.z - current.z,
+      );
       const distance = direction.length();
 
       if (distance < 0.1) {
@@ -578,12 +623,30 @@ export class GuardianHubScene3D {
 
       direction.normalize();
       current.addScaledVector(direction, speed * delta);
-      // Manter o personagem no chão durante o movimento
-      current.y = WORLD_Y_OFFSET;
+
       if (this.currentTarget) {
         this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
       }
     }
+  }
+
+  private updateCameraFollow() {
+    if (!this.beastGroup) {
+      return;
+    }
+
+    const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
+    const target = this.beastGroup.position;
+
+    // Posição desejada da câmera em relação ao guardião
+    const desired = new THREE.Vector3(
+      target.x + this.cameraOffset.x,
+      target.y + this.cameraOffset.y,
+      target.z + this.cameraOffset.z,
+    );
+
+    camera.position.lerp(desired, this.cameraFollowStrength);
+    camera.lookAt(target.x, target.y + 1.0, target.z);
   }
 
   private createHintSprite(): THREE.Sprite {
@@ -685,16 +748,194 @@ export class GuardianHubScene3D {
     if (box.isEmpty()) {
       return false;
     }
+
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = maxDim > 0 ? 1.7 / maxDim : 1;
+    const scale = maxDim > 0 ? 1.6 / maxDim : 1;
+
     group.scale.setScalar(scale);
+
     const offset = center.multiplyScalar(scale);
-    // Ajustar para que os pés do personagem fiquem no chão
-    // offset.y é a altura do centro do modelo, então subtraímos para colocar os pés no chão
-    group.position.set(-offset.x, WORLD_Y_OFFSET - offset.y, -offset.z);
+    group.position.set(-offset.x, this.baseYPosition - offset.y, -offset.z);
+
     return true;
+  }
+
+  // ========== GHOST SYSTEM ==========
+
+  private async updateGhostSystem(delta: number) {
+    this.elapsedTime += delta;
+
+    // Save our position every 3 seconds
+    if (this.beastGroup && this.elapsedTime - this.lastPositionSaveTime > 3) {
+      this.lastPositionSaveTime = this.elapsedTime;
+      await this.saveOurPosition();
+    }
+
+    // Fetch other players every 10 seconds
+    if (this.elapsedTime - this.lastGhostFetchTime > 10) {
+      this.lastGhostFetchTime = this.elapsedTime;
+      await this.fetchAndRenderGhosts();
+    }
+
+    // Update nametag positions
+    this.updateNametags();
+  }
+
+  private async saveOurPosition() {
+    if (!this.beastGroup) return;
+
+    try {
+      const pos = this.beastGroup.position;
+      const { gameApi } = await import('../../api/gameApi');
+      const result = await gameApi.saveHubPosition(pos.x, pos.y, pos.z);
+      console.log('[Ghost] ✅ Position saved:', { x: pos.x, y: pos.y, z: pos.z }, result);
+    } catch (error) {
+      console.error('[Ghost] ❌ Failed to save position:', error);
+    }
+  }
+
+  private async fetchAndRenderGhosts() {
+    try {
+      const { gameApi } = await import('../../api/gameApi');
+      const response = await gameApi.getRecentVisitors(5);
+      
+      console.log('[Ghost] 🔍 Fetch response:', response);
+      
+      if (response.success && response.data) {
+        const visitors = response.data.visitors;
+        console.log('[Ghost] 👥 Found visitors:', visitors.length, visitors);
+        
+        // Remove ghosts that are no longer in the visitor list
+        const visitorNames = new Set(visitors.map(v => v.playerName));
+        for (const [name, ghost] of this.ghostPlayers.entries()) {
+          if (!visitorNames.has(name)) {
+            console.log('[Ghost] 🗑️ Removing ghost:', name);
+            this.removeGhost(name);
+          }
+        }
+
+        // Add or update ghosts
+        for (const visitor of visitors) {
+          await this.addOrUpdateGhost(visitor);
+        }
+      } else {
+        console.log('[Ghost] ⚠️ No visitors data in response');
+      }
+    } catch (error) {
+      console.error('[Ghost] ❌ Failed to fetch visitors:', error);
+    }
+  }
+
+  private async addOrUpdateGhost(visitor: {
+    playerName: string;
+    beastLine: string;
+    position: { x: number; y: number; z: number };
+  }) {
+    const existing = this.ghostPlayers.get(visitor.playerName);
+
+    if (existing) {
+      console.log('[Ghost] 🔄 Updating ghost position:', visitor.playerName);
+      // Update position
+      existing.group.position.set(
+        visitor.position.x,
+        visitor.position.y,
+        visitor.position.z
+      );
+    } else {
+      console.log('[Ghost] ✨ Creating new ghost:', visitor.playerName, visitor.beastLine);
+      // Create new ghost
+      const ghostModel = new BeastModel(visitor.beastLine);
+      const ghostGroup = ghostModel.getGroup();
+      
+      // Usar o mesmo offset Y do Feralis (WORLD_Y_OFFSET - 1.1)
+      const adjustedY = WORLD_Y_OFFSET - 1.1;
+      ghostGroup.position.set(
+        visitor.position.x,
+        adjustedY,
+        visitor.position.z
+      );
+
+      console.log('[Ghost] 📍 Ghost position set:', { x: visitor.position.x, y: adjustedY, z: visitor.position.z });
+
+      // Make it slightly transparent (ghost effect)
+      ghostGroup.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const mat = child.material as THREE.MeshStandardMaterial;
+          mat.opacity = 0.6;
+          mat.transparent = true;
+        }
+      });
+
+      this.threeScene.addObject(ghostGroup);
+
+      // Create nametag
+      const nametag = this.createNametag(visitor.playerName);
+      ghostGroup.add(nametag);
+
+      // Play idle animation
+      if (ghostModel.hasRiggedAnimations()) {
+        ghostModel.playAnimation('idle', {
+          loop: THREE.LoopRepeat,
+          clampWhenFinished: false,
+          fadeIn: 0.2,
+          fadeOut: 0.2,
+        });
+      }
+
+      this.ghostPlayers.set(visitor.playerName, {
+        model: ghostModel,
+        group: ghostGroup,
+        nametag
+      });
+      
+      console.log('[Ghost] ✅ Ghost created successfully:', visitor.playerName);
+    }
+  }
+
+  private removeGhost(playerName: string) {
+    const ghost = this.ghostPlayers.get(playerName);
+    if (ghost) {
+      this.threeScene.removeObject(ghost.group);
+      ghost.model.dispose();
+      this.ghostPlayers.delete(playerName);
+    }
+  }
+
+  private createNametag(name: string): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.width = 256;
+    canvas.height = 64;
+
+    // Background
+    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Text
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 24px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(name, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(2, 0.5, 1);
+    sprite.position.y = 2; // Above the beast
+
+    return sprite;
+  }
+
+  private updateNametags() {
+    const camera = this.threeScene.getCamera();
+    
+    for (const [, ghost] of this.ghostPlayers) {
+      // Make nametag always face camera
+      ghost.nametag.lookAt(camera.position);
+    }
   }
 }
 

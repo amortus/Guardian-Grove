@@ -196,6 +196,12 @@ export class GameUI {
         this.ranchScene3D.handlePointerMove(event.clientX, event.clientY, getRect());
       };
       const onClick = (event: PointerEvent) => {
+        // Debug: garantir que o clique está chegando no container 3D
+        // eslint-disable-next-line no-console
+        console.log('[GameUI] Hub 3D click', {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
         if (!this.ranchScene3D) return;
         const id = this.ranchScene3D.handlePointerClick(event.clientX, event.clientY, getRect());
         if (id) {
@@ -214,6 +220,8 @@ export class GameUI {
       
       // Create Ranch Scene 3D
       this.ranchScene3D = new GuardianHubScene3D(canvas);
+      // eslint-disable-next-line no-console
+      console.log('[GameUI] Ranch Scene 3D created');
       this.ranchScene3D.setInteractionCallback((id) => this.handleHubInteraction(id));
       this.ranchScene3D.setHoverCallback((id) => this.updateHubHover(id));
       this.ranchScene3D.setBeast(beast.line);

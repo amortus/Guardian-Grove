@@ -138,5 +138,26 @@ export const gameApi = {
   async saveAchievementProgress(achievementId: string, progress: number, unlocked: boolean): Promise<ApiResponse<any>> {
     return apiClient.post('/progress/achievement', { achievementId, progress, unlocked });
   },
+
+  /**
+   * Hub Ghost System - Save player position
+   */
+  async saveHubPosition(x: number, y: number, z: number): Promise<ApiResponse<{ success: boolean }>> {
+    return apiClient.post('/hub/position', { x, y, z });
+  },
+
+  /**
+   * Hub Ghost System - Get recent visitors
+   */
+  async getRecentVisitors(limit = 5): Promise<ApiResponse<{ 
+    visitors: Array<{
+      playerName: string;
+      beastLine: string;
+      position: { x: number; y: number; z: number };
+      timestamp: string;
+    }>
+  }>> {
+    return apiClient.get(`/hub/recent-visitors?limit=${limit}`);
+  },
 };
 

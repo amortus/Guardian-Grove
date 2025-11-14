@@ -3,7 +3,10 @@
  * Guardian Grove Frontend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Em dev e em produção, usamos por padrão a API pública do Guardian Grove.
+// Se quiser apontar para outra instância (ex: backend local), basta definir VITE_API_URL.
+const DEFAULT_API_BASE_URL = 'https://guardian-grove-production.up.railway.app/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL;
 
 export class ApiClient {
   private baseUrl: string;
