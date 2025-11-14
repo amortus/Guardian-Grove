@@ -84,7 +84,7 @@ export class GuardianHubScene3D {
   }
 
   private createProceduralGround() {
-    const groundSize = 52;
+    const groundSize = 104; // 200% do tamanho original (52 -> 104)
     const geometry = new THREE.PlaneGeometry(groundSize, groundSize, 80, 80);
     const positions = geometry.attributes.position as THREE.BufferAttribute;
 
@@ -102,7 +102,7 @@ export class GuardianHubScene3D {
     geometry.computeVertexNormals();
 
     const material = new THREE.MeshStandardMaterial({
-      color: 0x67a45f,
+      color: 0x2d5016, // Verde floresta escuro
       roughness: 0.78,
       metalness: 0.04,
     });
@@ -407,80 +407,6 @@ export class GuardianHubScene3D {
     });
   }
 
-  private registerInteractable(id: string, mesh: THREE.Object3D, interactionTarget?: THREE.Vector3) {
-    const interactiveInfo = { id, position: new THREE.Vector3() }; // No direct map here, interactionTarget is used
-    const target = interactionTarget
-      ? interactionTarget.clone()
-      : interactiveInfo
-      ? new THREE.Vector3(interactiveInfo.position[0], 0, interactiveInfo.position[2])
-      : new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
-
-    mesh.updateWorldMatrix(true, false);
-
-    const bounds = new THREE.Box3().setFromObject(mesh);
-    const center = bounds.getCenter(new THREE.Vector3());
-    mesh.worldToLocal(center);
-
-    const sprite = this.createHintSprite();
-    sprite.position.copy(center);
-    sprite.position.y = bounds.getSize(new THREE.Vector3()).y * 0.6 + 0.5;
-    sprite.visible = false;
-    mesh.add(sprite);
-
-    // No interactables array or hoveredInteractable, so no interaction logic here
-  }
-
-  private async loadStaticModel(
-    url: string,
-    options: {
-      position: Vec3;
-      rotationY?: number;
-      targetHeight?: number;
-      scaleMultiplier?: number;
-      verticalOffset?: number;
-      name?: string;
-      onLoaded?: (group: THREE.Group) => void;
-    },
-  ) {
-    try {
-      const group = await this.loadGLTF(url);
-      group.position.set(options.position[0], options.position[1] + (options.verticalOffset ?? 0), options.position[2]);
-      group.rotation.y = options.rotationY ?? 0;
-      group.name = options.name ?? 'guardian-prop';
-
-      if (options.targetHeight) {
-        const box = new THREE.Box3().setFromObject(group);
-        const size = box.getSize(new THREE.Vector3());
-        const currentHeight = size.y || 1;
-        const scale = (options.targetHeight / currentHeight) * (options.scaleMultiplier ?? 1);
-        group.scale.setScalar(scale);
-      } else if (options.scaleMultiplier) {
-        group.scale.setScalar(options.scaleMultiplier);
-      }
-
-      group.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-
-      this.addDecoration(group);
-      options.onLoaded?.(group);
-    } catch (error) {
-      console.error(`[GuardianHubScene3D] Failed to load model '${url}'`, error);
-    }
-  }
-
-  private async loadGLTF(url: string): Promise<THREE.Group> {
-    if (this.gltfCache.has(url)) {
-      return this.gltfCache.get(url)!.clone(true);
-    }
-
-    const gltf = await this.gltfLoader.loadAsync(url);
-    this.gltfCache.set(url, gltf.scene);
-    return gltf.scene.clone(true);
-  }
 
   public setBeast(beastLine: string) {
     if (this.beastGroup) {
@@ -491,13 +417,13 @@ export class GuardianHubScene3D {
     this.beastModel = new BeastModel(beastLine);
     this.beastGroup = this.beastModel.getGroup();
     this.needsFit = true;
-    this.baseYPosition = WORLD_Y_OFFSET - 0.48;
+    this.baseYPosition = WORLD_Y_OFFSET; // Personagem em cima do chão
     this.isMoving = false;
     this.currentTarget = null;
     this.nextMoveTime = 1.5 + Math.random() * 1.5;
     this.activeRigAnimation = null;
 
-    this.beastGroup.position.set(-4.6, 0, -2.0);
+    this.beastGroup.position.set(-4.6, WORLD_Y_OFFSET, -2.0);
     this.threeScene.addObject(this.beastGroup);
 
     if (this.beastModel.hasRiggedAnimations()) {
@@ -567,13 +493,8 @@ export class GuardianHubScene3D {
     this.hoverCallback?.(null);
   }
 
-  private pickInteractable(): InteractableEntry | null {
+  private pickInteractable(): { id: string; target: THREE.Vector3 } | null {
     // No interactables array, so no pickInteractable
-    return null;
-  }
-
-  private findInteractableFromObject(object: THREE.Object3D): InteractableEntry | null {
-    // No interactables array, so no findInteractableFromObject
     return null;
   }
 
@@ -600,7 +521,7 @@ export class GuardianHubScene3D {
     const z = point.z;
 
     // No walkable zones, so no isPositionValid
-    return new THREE.Vector3(x, 0, z);
+    return new THREE.Vector3(x, WORLD_Y_OFFSET, z);
   }
 
   public update(delta: number) {
@@ -663,7 +584,11 @@ export class GuardianHubScene3D {
 
       direction.normalize();
       current.addScaledVector(direction, speed * delta);
-      this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
+      // Manter o personagem no chão durante o movimento
+      current.y = WORLD_Y_OFFSET;
+      if (this.currentTarget) {
+        this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
+      }
     }
   }
 
@@ -772,7 +697,9 @@ export class GuardianHubScene3D {
     const scale = maxDim > 0 ? 1.7 / maxDim : 1;
     group.scale.setScalar(scale);
     const offset = center.multiplyScalar(scale);
-    group.position.set(-offset.x, this.baseYPosition - offset.y, -offset.z);
+    // Ajustar para que os pés do personagem fiquem no chão
+    // offset.y é a altura do centro do modelo, então subtraímos para colocar os pés no chão
+    group.position.set(-offset.x, WORLD_Y_OFFSET - offset.y, -offset.z);
     return true;
   }
 }
