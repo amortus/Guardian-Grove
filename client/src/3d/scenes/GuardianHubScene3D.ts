@@ -229,9 +229,15 @@ export class GuardianHubScene3D {
 
     const makeRock = (x: number, z: number, scale = 1) => {
       const geometry = new THREE.IcosahedronGeometry(0.35 * scale, 1);
-      geometry.vertices.forEach((vertex) => {
-        vertex.addScalar((Math.random() - 0.5) * 0.08 * scale);
-      });
+      const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
+      for (let i = 0; i < positions.count; i++) {
+        const xPos = positions.getX(i);
+        const yPos = positions.getY(i);
+        const zPos = positions.getZ(i);
+        const jitter = (Math.random() - 0.5) * 0.08 * scale;
+        positions.setXYZ(i, xPos + jitter, yPos + jitter, zPos + jitter);
+      }
+      positions.needsUpdate = true;
       geometry.computeVertexNormals();
       const mesh = new THREE.Mesh(
         geometry,
