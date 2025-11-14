@@ -57,7 +57,7 @@ interface InteractableEntry {
 const WORLD_Y_OFFSET = -1.15;
 
 const TREE_HOUSE_POSITION: Vec3 = [-3.2, 0, -0.2];
-const TREE_HOUSE_SCALE = 3.4;
+const TREE_HOUSE_SCALE = 3.0;
 const TREE_HOUSE_DOOR_HEIGHT = 2.2;
 
 const CABIN_STRUCTURES: VillageStructure[] = [
@@ -503,8 +503,8 @@ export class GuardianHubScene3D {
     treePositions.forEach((pos, index) => {
       this.loadStaticModel('/assets/3d/Ranch/Tree/Tree2.glb', {
         position: pos,
-        targetHeight: 4.6,
-        scaleMultiplier: 1.1 + (index % 2) * 0.15,
+        targetHeight: 4.0,
+        scaleMultiplier: 0.95 + (index % 2) * 0.12,
         rotationY: Math.random() * Math.PI,
         verticalOffset: -0.2,
         name: 'guardian-tree',
