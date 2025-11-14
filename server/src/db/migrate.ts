@@ -18,7 +18,18 @@ const DUPLICATE_CODES = new Set([
 async function runMigrations() {
   console.log('[Migration] Starting database migrations...');
   
-  const migrationsDir = path.join(__dirname, 'migrations');
+  let migrationsDir = path.join(__dirname, 'migrations');
+  if (!fs.existsSync(migrationsDir)) {
+    const fallbackDir = path.resolve(__dirname, '../../src/db/migrations');
+    if (fs.existsSync(fallbackDir)) {
+      console.log('[Migration] migrations directory not found in dist, using source TS directory instead');
+      migrationsDir = fallbackDir;
+    } else {
+      throw new Error(
+        `[Migration] migrations directory not found. Checked:\n - ${migrationsDir}\n - ${fallbackDir}`
+      );
+    }
+  }
   const allMigrationFiles = fs.readdirSync(migrationsDir)
     .filter(file => file.endsWith('.sql'))
     .sort();
