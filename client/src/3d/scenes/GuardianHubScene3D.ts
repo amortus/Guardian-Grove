@@ -15,6 +15,7 @@ const WORLD_Y_OFFSET = -1.15;
 export class GuardianHubScene3D {
   private threeScene: ThreeScene;
   private decorationsRoot: THREE.Group | null = null;
+  private walkableGround: THREE.Mesh | null = null;
   private beastModel: BeastModel | null = null;
   private beastGroup: THREE.Group | null = null;
   private activeRigAnimation: 'idle' | 'walk' | null = null;
@@ -74,6 +75,7 @@ export class GuardianHubScene3D {
       this.decorationsRoot.remove(this.particlesSystem);
     }
     this.particlesSystem = null;
+    this.walkableGround = null;
     this.manualControl = false;
 
     if (this.decorationsRoot) {
@@ -85,7 +87,7 @@ export class GuardianHubScene3D {
 
   private createProceduralGround() {
     // Único chão visível: disco verde tipo ilha/floresta
-    const radius = 18; // um pouco maior para dar mais espaço para caminhar
+    const radius = 36; // dobro do tamanho anterior para dar bastante área de caminhada
     const geometry = new THREE.CircleGeometry(radius, 72);
 
     const material = new THREE.MeshStandardMaterial({
@@ -98,6 +100,7 @@ export class GuardianHubScene3D {
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = WORLD_Y_OFFSET;
     ground.receiveShadow = true;
+    this.walkableGround = ground;
     this.addDecoration(ground);
   }
 
@@ -441,6 +444,10 @@ export class GuardianHubScene3D {
   }
 
   public handlePointerClick(clientX: number, clientY: number, rect: DOMRect): string | null {
+    // Debug para entender porque o clique não está movendo o guardião
+    // eslint-disable-next-line no-console
+    console.log('[GuardianHubScene3D] handlePointerClick', { clientX, clientY, rect });
+
     this.preparePointer(clientX, clientY, rect);
     const entry = this.pickInteractable();
     if (entry) {
@@ -455,6 +462,8 @@ export class GuardianHubScene3D {
 
     const target = this.projectRayToWalkable();
     if (!target) {
+      // eslint-disable-next-line no-console
+      console.log('[GuardianHubScene3D] Nenhum ponto walkable encontrado para o clique');
       return null;
     }
 
@@ -490,17 +499,23 @@ export class GuardianHubScene3D {
   }
 
   private projectRayToWalkable(): THREE.Vector3 | null {
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -WORLD_Y_OFFSET);
-    const point = new THREE.Vector3();
-    if (!this.raycaster.ray.intersectPlane(plane, point)) {
+    if (!this.walkableGround) {
+      // eslint-disable-next-line no-console
+      console.log('[GuardianHubScene3D] walkableGround ausente na hora do clique');
       return null;
     }
 
-    const x = point.x;
-    const z = point.z;
+    // Usa interseção direta com o disco verde para garantir que o clique é no chão
+    const hits = this.raycaster.intersectObject(this.walkableGround, false);
+    if (!hits.length) {
+      return null;
+    }
 
-    // No walkable zones, so no isPositionValid
-    return new THREE.Vector3(x, WORLD_Y_OFFSET, z);
+    const point = hits[0].point;
+    const projected = new THREE.Vector3(point.x, WORLD_Y_OFFSET, point.z);
+    // eslint-disable-next-line no-console
+    console.log('[GuardianHubScene3D] Clique projetado no chão', { point, projected });
+    return projected;
   }
 
   public update(delta: number) {
