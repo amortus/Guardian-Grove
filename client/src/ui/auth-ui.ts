@@ -917,7 +917,7 @@ export class AuthUI {
     }
 
     // Subtitle
-    drawText(this.ctx, 'Aventura Cooperativa de Guardiões', panelX + panelWidth / 2, panelY + 260, {
+    drawText(this.ctx, 'Seu Santuário Cooperativo de Guardiões', panelX + panelWidth / 2, panelY + 260, {
       font: 'bold 20px monospace',
       color: COLORS.ui.text,
       align: 'center'
@@ -925,8 +925,8 @@ export class AuthUI {
 
     // Description
     const descriptions = [
-      'Crie e treine criaturas místicas em um santuário cooperativo.',
-      'Explore, complete missões e proteja o Grove com seus amigos!'
+      'Cultive guardiões místicos e proteja o coração do Grove.',
+      'Conecte-se com seus amigos, desbloqueie missões e evolua juntos!'
     ];
     descriptions.forEach((desc, i) => {
       drawText(this.ctx, desc, panelX + panelWidth / 2, panelY + 310 + i * 25, {
