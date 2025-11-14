@@ -52,6 +52,27 @@ export async function autoFixSchema(): Promise<void> {
       console.log('[DB] ✅ Índices criados com sucesso!');
     }
 
+    // Garantir colunas necessárias em game_saves
+    await query(`
+      ALTER TABLE game_saves
+      ADD COLUMN IF NOT EXISTS week INTEGER DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS coronas INTEGER DEFAULT 1000,
+      ADD COLUMN IF NOT EXISTS victories INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS current_title VARCHAR(100) DEFAULT 'Guardião Iniciante',
+      ADD COLUMN IF NOT EXISTS win_streak INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS lose_streak INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_trains INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_crafts INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS total_spent INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS needs_avatar_selection BOOLEAN DEFAULT true;
+    `);
+
+    await query(`
+      UPDATE game_saves
+      SET needs_avatar_selection = true
+      WHERE needs_avatar_selection IS NULL;
+    `);
+
     // Garantir colunas de limites diários (novas no Guardian Grove)
     await query(`
       ALTER TABLE beasts
