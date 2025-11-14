@@ -94,7 +94,6 @@ const WALKABLE_ZONES: WalkableZone[] = [
 const INTERACTIVE_OBJECTS: InteractiveObject[] = [
   { id: 'mission_board', position: [-4.3, 0, -1.0], radius: 1.0 },
   { id: 'craft_well', position: [3.4, 0, 2.6], radius: 1.0 },
-  { id: 'tree_house', position: TREE_HOUSE_POSITION, radius: 2.6 },
   { id: 'tavern', position: CABIN_STRUCTURES[1].position, radius: 1.8 },
   { id: 'temple', position: CABIN_STRUCTURES[0].position, radius: 1.9 },
 ];
@@ -182,7 +181,8 @@ export class GuardianHubScene3D {
     this.createGround();
     this.createWalkway();
     this.createRiver();
-    this.createTreeHouse();
+    // Tree house temporarily disabled until bespoke asset is ready
+    // this.createTreeHouse();
     this.createCabins();
     this.createWell();
     this.createMissionBoard();
@@ -300,8 +300,8 @@ export class GuardianHubScene3D {
       name: 'guardian-tree-house',
       onLoaded: (group) => {
         this.decorateTreeHouse(group);
-        this.obstacles.push({ position: [TREE_HOUSE_POSITION[0], TREE_HOUSE_POSITION[2]], radius: 2.8 });
-        this.registerInteractable('tree_house', group, new THREE.Vector3(TREE_HOUSE_POSITION[0] + 1.4, 0, TREE_HOUSE_POSITION[2] - 0.6));
+    this.obstacles.push({ position: [TREE_HOUSE_POSITION[0], TREE_HOUSE_POSITION[2]], radius: 2.8 });
+    this.registerInteractable('tree_house', group, new THREE.Vector3(TREE_HOUSE_POSITION[0] + 1.4, 0, TREE_HOUSE_POSITION[2] - 0.6));
       },
     });
   }
