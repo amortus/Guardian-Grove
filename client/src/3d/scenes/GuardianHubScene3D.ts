@@ -114,11 +114,11 @@ export class GuardianHubScene3D {
     this.addDecoration(mesh);
 
     const path = new THREE.Mesh(
-      new THREE.CircleGeometry(8, 48),
-      new THREE.MeshStandardMaterial({ color: 0xf1dcb0, roughness: 0.65, metalness: 0.05 })
+      new THREE.CircleGeometry(16, 64),
+      new THREE.MeshStandardMaterial({ color: 0x346b1f, roughness: 0.7, metalness: 0.04 })
     );
     path.rotation.x = -Math.PI / 2;
-    path.position.y = WORLD_Y_OFFSET + 0.03;
+    path.position.y = WORLD_Y_OFFSET + 0.02;
     this.addDecoration(path);
   }
 
