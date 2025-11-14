@@ -2,12 +2,13 @@
  * Guardian Grove - Main Bootstrap
  * Online version with authentication
  * 
- * VERSION: 0.6.5
+ * VERSION: 0.8.0
  */
 
 // Log version immediately so we know if cache is working
-console.log('%c🔥 GUARDIAN GROVE - CÓDIGO NOVO CARREGADO! 🔥', 'background: #00ff00; color: #000; font-size: 20px; padding: 10px; font-weight: bold;');
-console.log('%cVersão: 0.6.5', 'background: #0f3460; color: #fff; font-size: 14px; padding: 5px;');
+const CLIENT_VERSION = '0.8.0-hub-refresh';
+console.log('%c🔥 GUARDIAN GROVE - BUILD ATUAL CARREGADO! 🔥', 'background: #00ff00; color: #000; font-size: 20px; padding: 10px; font-weight: bold;');
+console.log(`%cVersão: ${CLIENT_VERSION}`, 'background: #0f3460; color: #fff; font-size: 14px; padding: 5px;');
 console.log('%cSe você não vê este log verde, ainda está com cache antigo!', 'color: #ff0000; font-size: 12px;');
 
 import { GameUI } from './ui/game-ui';
@@ -86,6 +87,18 @@ function applyGuardianTheme() {
 }
 
 applyGuardianTheme();
+
+const LEGACY_STORAGE_KEYS = ['beast_keepers_save', 'beast_keepers_state', 'guardian_save'];
+LEGACY_STORAGE_KEYS.forEach((key) => {
+  if (localStorage.getItem(key)) {
+    console.warn('[Bootstrap] Removing legacy storage key:', key);
+    localStorage.removeItem(key);
+  }
+});
+if (localStorage.getItem('guardian_grove_version') !== CLIENT_VERSION) {
+  console.log('[Bootstrap] Atualizando versão persistida para', CLIENT_VERSION);
+  localStorage.setItem('guardian_grove_version', CLIENT_VERSION);
+}
 
 function parseServerTraits(rawTraits: any): string[] {
   if (Array.isArray(rawTraits)) {
@@ -1098,8 +1111,12 @@ async function setupGame() {
       return;
     }
     
+    const totalBeasts = gameState.ranch?.beasts?.length ?? 0;
     if ((gameState as any).needsAvatarSelection === undefined) {
-      gameState.needsAvatarSelection = !gameState.activeBeast;
+      gameState.needsAvatarSelection = !gameState.activeBeast || totalBeasts === 0;
+    } else if (!gameState.activeBeast || totalBeasts === 0) {
+      // Força seleção de avatar se não existir guardião válido
+      gameState.needsAvatarSelection = true;
     }
     gameState.currentWeek ??= 1;
     gameState.year ??= 1;

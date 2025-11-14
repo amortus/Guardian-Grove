@@ -21,6 +21,9 @@ export const STARTER_CONFIG: Array<{ line: BeastLine; name: string }> = [
   { line: 'terravox', name: 'Terravox' },
 ];
 
+const STORAGE_KEY = 'guardian_grove_save';
+const LEGACY_STORAGE_KEYS = ['beast_keepers_save', 'beast_keepers_state', 'guardian_save'];
+
 export function createNewGame(playerName: string): GameState {
   const gameState: GameState = {
     // Sistema de tempo real
@@ -87,7 +90,12 @@ export function createNewGame(playerName: string): GameState {
 export async function saveGame(state: GameState): Promise<void> {
   try {
     // Save locally first (for offline support)
-    await saveToStorage('beast_keepers_save', state);
+    await saveToStorage(STORAGE_KEY, state);
+    LEGACY_STORAGE_KEYS.forEach((legacyKey) => {
+      if (legacyKey !== STORAGE_KEY) {
+        localStorage.removeItem(legacyKey);
+      }
+    });
     
     // Check if user is authenticated (has token)
     const token = localStorage.getItem('auth_token');
@@ -158,7 +166,20 @@ export async function saveGame(state: GameState): Promise<void> {
  */
 export async function loadGame(): Promise<GameState | null> {
   try {
-    const state = await loadFromStorage<GameState>('beast_keepers_save');
+    const state = await loadFromStorage<GameState>(STORAGE_KEY);
+    if (!state) {
+      // If legacy saves exist, wipe them so we don't resurrect Beast Keepers data
+      let legacyFound = false;
+      LEGACY_STORAGE_KEYS.forEach((legacyKey) => {
+        if (localStorage.getItem(legacyKey)) {
+          legacyFound = true;
+          localStorage.removeItem(legacyKey);
+        }
+      });
+      if (legacyFound) {
+        console.warn('[Save] Legacy Beast Keepers save detected and removed. Starting fresh Guardian Grove profile.');
+      }
+    }
     if (state) {
       console.log('[Save] Jogo carregado com sucesso');
     }

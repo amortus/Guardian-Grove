@@ -1,6 +1,6 @@
-Version: 0.1.0-guardian-grove
-Build Date: 2025-11-13 11:55
-Commit: initial-clone
-Features: Guardian Grove JAM bootstrap with cooperative hub
-Expected File: main-gJvwcsbX.js or newer
+Version: 0.8.0-hub-refresh
+Build Date: 2025-11-13 23:30
+Commit: hub-refresh
+Features: Guardian Grove hub HUD, avatar selection, dedicated API
+Expected File: main-DKYGtlol.js or newer
 

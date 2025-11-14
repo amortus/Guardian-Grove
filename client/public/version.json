@@ -1,13 +1,13 @@
 {
-  "version": "0.1.0-jam-bootstrap",
-  "build": "guardian-grove-clone",
-  "timestamp": "2025-11-13T00:00:00Z",
-  "system": "Guardian Grove JAM Build",
+  "version": "0.8.0-hub-refresh",
+  "build": "guardian-hub-alpha",
+  "timestamp": "2025-11-13T23:30:00Z",
+  "system": "Guardian Grove Hub System",
   "features": [
-    "Hub 3D cooperativo",
-    "Integração multiplayer Socket.io",
-    "Sistema de batalhas táticas 2D/3D",
-    "Configuração base clonada do projeto original"
+    "Hub 3D cooperativo Guardian Hub Scene",
+    "Avatar inicial selecionável direto no santuário",
+    "HUD diegética sem painéis herdados",
+    "Integração com banco dedicado Guardian Grove"
   ]
 }
 
