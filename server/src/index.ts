@@ -15,6 +15,7 @@ import friendsRoutes from './routes/friends';
 import inventoryRoutes from './routes/inventory';
 import progressRoutes from './routes/progress';
 import { pool } from './db/connection';
+import { runMigrations } from './db/migrate';
 import { startEventScheduler } from './services/eventScheduler';
 import { initializeChatService } from './services/chatService';
 import { autoFixSchema } from './db/auto-fix-schema';
@@ -128,6 +129,9 @@ async function startServer() {
     // Test database connection
     await pool.query('SELECT NOW()');
     console.log('[DB] Database connection established');
+
+    // Run pending migrations before starting the server
+    await runMigrations();
 
     // Auto-fix schema (adiciona colunas necessárias se não existirem)
     await autoFixSchema();

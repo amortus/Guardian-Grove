@@ -26,7 +26,6 @@ import { DungeonUI } from './ui/dungeon-ui';
 import { ModalUI } from './ui/modal-ui';
 import { ExplorationUI } from './ui/exploration-ui';
 import { AuthUI } from './ui/auth-ui';
-import { GameInitUI } from './ui/game-init-ui';
 import { Ranch3DUI } from './ui/ranch-3d-ui';
 import { Village3DUI } from './ui/village-3d-ui';
 import { ChatUI } from './ui/chat-ui';
@@ -212,10 +211,8 @@ if (!ctx) {
 // Auth state
 let isAuthenticated = false;
 let authUI: AuthUI | null = null;
-let gameInitUI: GameInitUI | null = null;
 let authDOMObserver: MutationObserver | null = null;
 let inAuth = true; // Start with auth screen
-let needsGameInit = false; // After registration, needs game init
 
 /**
  * CRÍTICO: MutationObserver que remove inputs de auth automaticamente
@@ -420,8 +417,6 @@ function startRenderLoop() {
     // CORREÇÃO: inAuth já garante que não renderizamos AuthUI após login
     if (inAuth && authUI) {
       authUI.draw();
-    } else if (needsGameInit && gameInitUI) {
-      gameInitUI.draw();
     } else if (inBattle && battleUI) {
       battleUI.draw();
     } else if (inTemple && templeUI && gameState) {
@@ -557,7 +552,6 @@ async function init() {
 
     // Create Auth UI
     authUI = new AuthUI(canvas);
-    gameInitUI = new GameInitUI(canvas);
 
     // Check for OAuth callback
     authUI.checkOAuthCallback();
@@ -751,7 +745,6 @@ async function init() {
       }
       
       // Inicializar o jogo automaticamente com o nome informado no registro
-      // Não precisa mostrar a tela de gameInitUI, pois o usuário já informou o nome
       try {
         loadingEl.textContent = 'Inicializando seu jogo...';
         loadingEl.style.display = 'block';
@@ -766,29 +759,18 @@ async function init() {
           // CORREÇÃO: Redimensionar novamente após setupGame
           resizeCanvas();
         } else {
-          // Se falhar, mostrar tela de init como fallback
-          needsGameInit = true;
-          if (gameInitUI) {
-            gameInitUI.reset();
-          }
           loadingEl.style.display = 'none';
-          console.error('[GameInit] Failed to auto-initialize:', response.error);
+          handleGameInitializationFailure(
+            response.error || 'Não foi possível iniciar sua jornada automaticamente.'
+          );
         }
       } catch (error: any) {
         console.error('[GameInit] Auto-initialization error:', error);
-        // Se falhar, mostrar tela de init como fallback
-        needsGameInit = true;
-        if (gameInitUI) {
-          gameInitUI.reset();
-        }
         loadingEl.style.display = 'none';
+        handleGameInitializationFailure(
+          error?.message || 'Erro inesperado ao iniciar sua jornada.'
+        );
       }
-    };
-
-    gameInitUI.onInitComplete = async (gameSave, initialBeast) => {
-      console.log('[GameInit] Game initialized:', gameSave.playerName, 'with', initialBeast.line);
-      needsGameInit = false;
-      await loadGameFromServer();
     };
 
     // Start render loop early
@@ -861,6 +843,25 @@ async function init() {
   }
 }
 
+function handleGameInitializationFailure(message: string) {
+  console.error('[GameInit] Failure:', message);
+  const finalMessage = `${message}\n\nVamos recarregar a página para tentar novamente.`;
+  if (modalUI) {
+    modalUI.show({
+      type: 'message',
+      title: '⚠️ Não foi possível iniciar',
+      message: finalMessage,
+      onConfirm: () => {
+        modalUI.hide();
+        window.location.reload();
+      },
+    });
+  } else {
+    alert(finalMessage);
+    window.location.reload();
+  }
+}
+
 function handleLogout() {
   if (!modalUI) return;
 
@@ -905,7 +906,6 @@ function handleLogout() {
         // Show auth screen
         isAuthenticated = false;
         inAuth = true;
-        needsGameInit = false;
         
         // Hide loading to prevent stuck screen
         loadingEl.style.display = 'none';
@@ -1080,8 +1080,10 @@ async function loadGameFromServer() {
       // CORREÇÃO: Garantir que canvas está redimensionado após setupGame
       resizeCanvas();
     } else {
-      // No game save found - should trigger game init
-      needsGameInit = true;
+      handleGameInitializationFailure(
+        'Não encontramos os dados iniciais da sua jornada. Vamos recarregar para tentar novamente.'
+      );
+      return;
     }
     // Iniciar loop de sincronização em tempo real
     startRealtimeSync();
@@ -1089,11 +1091,14 @@ async function loadGameFromServer() {
   } catch (error: any) {
     console.error('[Game] Failed to load from server:', error);
     if (error.message.includes('No game save found')) {
-      needsGameInit = true;
+      handleGameInitializationFailure(
+        'Não encontramos os dados iniciais da sua jornada. Vamos recarregar para tentar novamente.'
+      );
     } else {
       errorEl.textContent = 'Erro ao carregar jogo do servidor';
       errorEl.style.display = 'block';
     }
+    return;
   } finally {
     loadingEl.style.display = 'none';
     // CORREÇÃO: Garantir resizeCanvas após carregar (sucesso ou erro)
