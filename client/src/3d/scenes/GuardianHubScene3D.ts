@@ -5,124 +5,16 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { ThreeScene } from '../ThreeScene';
 import { BeastModel } from '../models/BeastModel';
-import { PS1Water } from '../water/PS1Water';
 import { getSkyColor } from '../../utils/day-night';
-
-type Vec2 = [number, number];
-type Vec3 = [number, number, number];
-
-interface ObstacleCircle {
-  position: Vec2;
-  radius: number;
-}
-
-interface WalkableZone {
-  position: Vec2;
-  radius: number;
-}
-
-interface WaterSegment {
-  position: Vec3;
-  radius: number;
-  scaleX?: number;
-  scaleZ?: number;
-  rotation?: number;
-}
-
-interface VillageStructure {
-  id: string;
-  model: string;
-  position: Vec3;
-  rotation?: number;
-  scale?: number;
-}
-
-interface InteractiveObject {
-  id: string;
-  position: Vec3;
-  radius: number;
-}
-
-interface InteractableEntry {
-  id: string;
-  mesh: THREE.Object3D;
-  sprite: THREE.Sprite;
-  target: THREE.Vector3;
-}
 
 const WORLD_Y_OFFSET = -1.15;
 
-const TREE_HOUSE_POSITION: Vec3 = [-3.2, 0, -0.2];
-const TREE_HOUSE_SCALE = 3.0;
-const TREE_HOUSE_DOOR_HEIGHT = 2.2;
-
-const CABIN_STRUCTURES: VillageStructure[] = [
-  {
-    id: 'temple',
-    model: '/assets/3d/Village/Temple.glb',
-    position: [3.6, 0, -0.4],
-    rotation: Math.PI * 0.12,
-    scale: 0.95,
-  },
-  {
-    id: 'tavern',
-    model: '/assets/3d/Village/Tavern.glb',
-    position: [3.1, 0, 2.2],
-    rotation: -Math.PI * 0.08,
-    scale: 0.9,
-  },
-];
-
-const WATER_SEGMENTS: WaterSegment[] = [
-  { position: [-0.5, 0, 1.2], radius: 1.3, scaleX: 1.4, scaleZ: 1.0, rotation: Math.PI * 0.04 },
-  { position: [1.2, 0, 1.8], radius: 1.2, scaleX: 1.5, scaleZ: 0.9, rotation: -Math.PI * 0.02 },
-  { position: [2.6, 0, 2.4], radius: 1.1, scaleX: 1.6, scaleZ: 0.9, rotation: -Math.PI * 0.06 },
-];
-
-const WALKABLE_ZONES: WalkableZone[] = [
-  { position: [-3.6, -0.8], radius: 2.4 },
-  { position: [-1.6, -0.2], radius: 2.6 },
-  { position: [0.6, 0.4], radius: 2.5 },
-  { position: [2.0, 1.2], radius: 2.4 },
-  { position: [3.4, 2.0], radius: 2.2 },
-];
-
-const INTERACTIVE_OBJECTS: InteractiveObject[] = [
-  { id: 'mission_board', position: [-4.3, 0, -1.0], radius: 1.0 },
-  { id: 'craft_well', position: [3.4, 0, 2.6], radius: 1.0 },
-  { id: 'tavern', position: CABIN_STRUCTURES[1].position, radius: 1.8 },
-  { id: 'temple', position: CABIN_STRUCTURES[0].position, radius: 1.9 },
-];
-
-const WALKWAY_NODES: Vec2[] = [
-  [-4.4, -1.4],
-  [-2.8, -0.8],
-  [-1.2, -0.3],
-  [0.4, 0.4],
-  [2.0, 1.2],
-  [3.2, 2.2],
-  [3.8, 3.0],
-];
-
-const WALKWAY_RADIUS = 1.8;
-const WALKWAY_COLOR = 0xf3e3bb;
-
-const INTERACTIVE_OBJECT_MAP: Record<string, InteractiveObject> = INTERACTIVE_OBJECTS.reduce((acc, obj) => {
-  acc[obj.id] = obj;
-  return acc;
-}, {} as Record<string, InteractiveObject>);
-
 export class GuardianHubScene3D {
   private threeScene: ThreeScene;
-  private gltfLoader = new GLTFLoader();
-  private gltfCache = new Map<string, THREE.Group>();
-
   private decorationsRoot: THREE.Group | null = null;
-  private waterSegments: PS1Water[] = [];
   private beastModel: BeastModel | null = null;
   private beastGroup: THREE.Group | null = null;
   private activeRigAnimation: 'idle' | 'walk' | null = null;
@@ -134,12 +26,8 @@ export class GuardianHubScene3D {
   private nextMoveTime = 0;
   private elapsedTime = 0;
 
-  private obstacles: ObstacleCircle[] = [];
-  private interactables: InteractableEntry[] = [];
-  private hoveredInteractable: string | null = null;
   private interactionCallback?: (id: string) => void;
   private hoverCallback?: (id: string | null) => void;
-  private pendingInteraction: { id: string; target: THREE.Vector3 } | null = null;
   private manualControl = false;
   private particlesSystem: THREE.Points | null = null;
   private raycaster = new THREE.Raycaster();
@@ -169,41 +57,23 @@ export class GuardianHubScene3D {
   private rebuildDecorations() {
     this.clearDecorations();
 
-    this.interactables = [];
-    this.hoveredInteractable = null;
-    this.pendingInteraction = null;
-    this.manualControl = false;
-
     this.decorationsRoot = new THREE.Group();
     this.decorationsRoot.position.y = WORLD_Y_OFFSET;
     this.threeScene.addObject(this.decorationsRoot);
 
-    this.createGround();
-    this.createWalkway();
-    this.createRiver();
-    // Tree house temporarily disabled until bespoke asset is ready
-    // this.createTreeHouse();
-    this.createCabins();
-    this.createWell();
-    this.createMissionBoard();
-    this.createBridge();
-    this.createNatureProps();
+    this.createProceduralGround();
+    this.createProceduralRiver();
+    this.createProceduralStructures();
+    this.createProceduralDecor();
     this.createLightingProps();
     this.createAmbientParticles();
-    this.setupObstacles();
   }
 
   private clearDecorations() {
-    this.waterSegments.forEach((segment) => segment.dispose());
-    this.waterSegments = [];
-
-     if (this.particlesSystem && this.decorationsRoot) {
+    if (this.particlesSystem && this.decorationsRoot) {
       this.decorationsRoot.remove(this.particlesSystem);
     }
     this.particlesSystem = null;
-    this.interactables = [];
-    this.hoveredInteractable = null;
-    this.pendingInteraction = null;
     this.manualControl = false;
 
     if (this.decorationsRoot) {
@@ -213,27 +83,27 @@ export class GuardianHubScene3D {
     }
   }
 
-  private createGround() {
-    const groundSize = 64;
+  private createProceduralGround() {
+    const groundSize = 52;
     const geometry = new THREE.PlaneGeometry(groundSize, groundSize, 80, 80);
     const positions = geometry.attributes.position as THREE.BufferAttribute;
 
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i);
       const z = positions.getZ(i);
-      const radialFalloff = 1 - Math.min(1, Math.sqrt(x * x + z * z) / (groundSize * 0.6));
+      const radialFalloff = 1 - Math.min(1, Math.sqrt(x * x + z * z) / (groundSize * 0.55));
       const noise =
-        Math.sin(x * 0.12) * 0.04 +
-        Math.cos(z * 0.1) * 0.03 +
-        Math.sin((x + z) * 0.08) * 0.02;
+        Math.sin(x * 0.12) * 0.05 +
+        Math.cos(z * 0.08) * 0.04 +
+        Math.sin((x + z) * 0.07) * 0.03;
       positions.setY(i, noise * radialFalloff);
     }
     positions.needsUpdate = true;
     geometry.computeVertexNormals();
 
     const material = new THREE.MeshStandardMaterial({
-      color: 0x5f9c5b,
-      roughness: 0.8,
+      color: 0x67a45f,
+      roughness: 0.78,
       metalness: 0.04,
     });
 
@@ -242,275 +112,145 @@ export class GuardianHubScene3D {
     mesh.position.y = WORLD_Y_OFFSET;
     mesh.receiveShadow = true;
     this.addDecoration(mesh);
+
+    const path = new THREE.Mesh(
+      new THREE.CircleGeometry(8, 48),
+      new THREE.MeshStandardMaterial({ color: 0xf1dcb0, roughness: 0.65, metalness: 0.05 })
+    );
+    path.rotation.x = -Math.PI / 2;
+    path.position.y = WORLD_Y_OFFSET + 0.03;
+    this.addDecoration(path);
   }
 
-  private createWalkway() {
-    const walkwayMaterial = new THREE.MeshStandardMaterial({
-      color: WALKWAY_COLOR,
-      roughness: 0.7,
-      metalness: 0.05,
-    });
-
-    WALKWAY_NODES.forEach(([x, z], index) => {
-      const circleGeometry = new THREE.CircleGeometry(WALKWAY_RADIUS, 32);
-      const slab = new THREE.Mesh(circleGeometry, walkwayMaterial);
-      slab.rotation.x = -Math.PI / 2;
-      slab.position.set(x, WORLD_Y_OFFSET + 0.02 + (index % 2 === 0 ? 0.01 : 0), z);
-      slab.receiveShadow = true;
-      this.addDecoration(slab);
-    });
-  }
-
-  private createRiver() {
+  private createProceduralRiver() {
     const riverGroup = new THREE.Group();
+    const pathPoints = [
+      new THREE.Vector3(-2.2, WORLD_Y_OFFSET + 0.05, 0.5),
+      new THREE.Vector3(-0.5, WORLD_Y_OFFSET + 0.05, 1.1),
+      new THREE.Vector3(1.4, WORLD_Y_OFFSET + 0.05, 1.5),
+      new THREE.Vector3(3.0, WORLD_Y_OFFSET + 0.05, 2.1),
+    ];
 
-    WATER_SEGMENTS.forEach((segment) => {
-      const water = new PS1Water({
-        size: segment.radius,
-        segments: 24,
-        color: 0x3bb6d5,
-        waveSpeed: 0.8,
-        waveHeight: 0.05,
-      });
-      const mesh = water.getMesh();
-      mesh.position.set(segment.position[0], segment.position[1] + 0.03, segment.position[2]);
-      mesh.scale.set(segment.scaleX ?? 1, 1, segment.scaleZ ?? 1);
-      if (segment.rotation) {
-        mesh.rotation.z = segment.rotation;
-      }
-      riverGroup.add(mesh);
-      this.waterSegments.push(water);
-
-      this.obstacles.push({
-        position: [segment.position[0], segment.position[2]],
-        radius: segment.radius * (segment.scaleX ?? 1),
-      });
+    const tubePath = new THREE.CatmullRomCurve3(pathPoints);
+    const tubeGeometry = new THREE.TubeGeometry(tubePath, 60, 0.4, 12, false);
+    const tubeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x49b6ff,
+      metalness: 0.1,
+      roughness: 0.35,
+      transparent: true,
+      opacity: 0.85,
+      emissive: 0x0e3c5c,
+      emissiveIntensity: 0.25,
     });
+
+    const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+    tube.castShadow = false;
+    tube.receiveShadow = false;
+    riverGroup.add(tube);
 
     this.addDecoration(riverGroup);
   }
 
-  private createTreeHouse() {
-    this.loadStaticModel('/assets/3d/Ranch/Tree/Tree1.glb', {
-      position: TREE_HOUSE_POSITION,
-      rotationY: -Math.PI * 0.15,
-      scaleMultiplier: TREE_HOUSE_SCALE,
-      targetHeight: 10,
-      verticalOffset: -0.2,
-      name: 'guardian-tree-house',
-      onLoaded: (group) => {
-        this.decorateTreeHouse(group);
-    this.obstacles.push({ position: [TREE_HOUSE_POSITION[0], TREE_HOUSE_POSITION[2]], radius: 2.8 });
-    this.registerInteractable('tree_house', group, new THREE.Vector3(TREE_HOUSE_POSITION[0] + 1.4, 0, TREE_HOUSE_POSITION[2] - 0.6));
-      },
-    });
-  }
-
-  private decorateTreeHouse(group: THREE.Group) {
-    const doorGeometry = new THREE.CylinderGeometry(0.65, 0.65, TREE_HOUSE_DOOR_HEIGHT, 16, 1, false, 0, Math.PI);
-    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x7c4f2b, roughness: 0.75 });
-    const door = new THREE.Mesh(doorGeometry, doorMaterial);
-    door.rotation.set(0, Math.PI, 0);
-    door.position.set(0, 1.1, 1.1);
-    group.add(door);
-
-    const archGeometry = new THREE.TorusGeometry(0.75, 0.1, 12, 32, Math.PI);
-    const archMaterial = new THREE.MeshStandardMaterial({ color: 0x976032, roughness: 0.8 });
-    const arch = new THREE.Mesh(archGeometry, archMaterial);
-    arch.rotation.set(Math.PI / 2, 0, 0);
-    arch.position.set(0, 1.5, 1.05);
-    group.add(arch);
-
-    const light = new THREE.PointLight(0xfff4c2, 0.8, 6, 2);
-    light.position.set(0, 2.3, 1.4);
-    group.add(light);
-  }
-
-  private createCabins() {
-    CABIN_STRUCTURES.forEach((structure) => {
-      this.loadStaticModel(structure.model, {
-        position: structure.position,
-        rotationY: structure.rotation ?? 0,
-        targetHeight: 4.2,
-        scaleMultiplier: structure.scale ?? 1,
-        name: 'guardian-cabin',
-        verticalOffset: -0.25,
-        onLoaded: (group) => {
-          this.obstacles.push({
-            position: [structure.position[0], structure.position[2]],
-            radius: 2.0,
-          });
-          const target = new THREE.Vector3(structure.position[0] - 1.2, 0, structure.position[2] + 0.8);
-          this.registerInteractable(structure.id, group, target);
-        },
-      });
-    });
-  }
-
-  private createWell() {
-    const group = new THREE.Group();
-    group.position.set(3.4, WORLD_Y_OFFSET + 0.05, 2.6);
-
-    const baseGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.7, 24);
+  private createProceduralStructures() {
     const baseMaterial = new THREE.MeshStandardMaterial({
-      color: 0x8a8f9a,
+      color: 0xdac5a5,
+      roughness: 0.7,
+      metalness: 0.12,
+    });
+    const roofMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2f8068,
+      roughness: 0.58,
+      metalness: 0.16,
+    });
+
+    const placeHouse = (x: number, z: number, rotation: number) => {
+      const house = new THREE.Group();
+      house.position.set(x, WORLD_Y_OFFSET + 0.2, z);
+      house.rotation.y = rotation;
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.5, 1.8), baseMaterial);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      house.add(body);
+
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(1.6, 1.0, 4), roofMaterial);
+      roof.position.y = 1.2;
+      roof.rotation.y = Math.PI / 4;
+      roof.castShadow = true;
+      house.add(roof);
+
+      this.addDecoration(house);
+    };
+
+    placeHouse(2.0, 0.0, Math.PI * 0.18);
+    placeHouse(1.5, 1.8, -Math.PI * 0.1);
+
+    const well = new THREE.Group();
+    well.position.set(0.4, WORLD_Y_OFFSET + 0.05, 0.9);
+
+    const wellBase = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.5, 16), new THREE.MeshStandardMaterial({
+      color: 0x8d92a0,
       roughness: 0.8,
-      metalness: 0.05,
-    });
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.castShadow = true;
-    base.receiveShadow = true;
-    group.add(base);
+    }));
+    wellBase.castShadow = true;
+    wellBase.receiveShadow = true;
+    well.add(wellBase);
 
-    const waterPlane = new PS1Water({ size: 0.6, color: 0x4fc7f1, waveHeight: 0.02, waveSpeed: 0.9 });
-    const waterMesh = waterPlane.getMesh();
-    waterMesh.position.y = 0.25;
-    waterMesh.scale.set(0.9, 1, 0.9);
-    group.add(waterMesh);
-    this.waterSegments.push(waterPlane);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.5, 6), roofMaterial);
+    roof.position.y = 0.8;
+    roof.castShadow = true;
+    well.add(roof);
 
-    const postGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.8, 12);
-    const postMaterial = new THREE.MeshStandardMaterial({ color: 0x784f2a, roughness: 0.7 });
-    const leftPost = new THREE.Mesh(postGeometry, postMaterial);
-    leftPost.position.set(-0.5, 1.0, 0);
-    const rightPost = leftPost.clone();
-    rightPost.position.x = 0.5;
-    group.add(leftPost);
-    group.add(rightPost);
-
-    const roof = new THREE.Mesh(
-      new THREE.ConeGeometry(1.2, 0.7, 4),
-      new THREE.MeshStandardMaterial({ color: 0x2f8769, roughness: 0.65 }),
-    );
-    roof.rotation.y = Math.PI / 4;
-    roof.position.y = 1.9;
-    group.add(roof);
-
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.12, 0.2), postMaterial);
-    beam.position.y = 1.1;
-    group.add(beam);
-
-    this.addDecoration(group);
-
-    this.obstacles.push({ position: [3.4, 2.6], radius: 1.1 });
-    this.registerInteractable('craft_well', group, new THREE.Vector3(2.8, 0, 2.1));
+    this.addDecoration(well);
   }
 
-  private createMissionBoard() {
-    const position: Vec3 = [-4.3, WORLD_Y_OFFSET + 0.02, -1.0];
-    this.loadStaticModel('/assets/3d/Village/Mission.glb', {
-      position,
-      rotationY: Math.PI * 0.18,
-      targetHeight: 2.9,
-      scaleMultiplier: 1.02,
-      name: 'guardian-mission-board',
-      onLoaded: (group) => {
-        group.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.material = child.material.clone();
-            if ('roughness' in child.material) {
-              (child.material as THREE.MeshStandardMaterial).roughness = 0.52;
-            }
-            if ('metalness' in child.material) {
-              (child.material as THREE.MeshStandardMaterial).metalness = 0.06;
-            }
-          }
+  private createProceduralDecor() {
+    const decorGroup = new THREE.Group();
+
+    const makeTree = (x: number, z: number, scale = 1) => {
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * scale, 0.2 * scale, 0.9 * scale, 6));
+      trunk.material = new THREE.MeshStandardMaterial({ color: 0x5d3b1f, roughness: 0.8 });
+      trunk.position.set(x, WORLD_Y_OFFSET + 0.45 * scale, z);
+      trunk.castShadow = true;
+      decorGroup.add(trunk);
+
+      for (let i = 0; i < 3; i++) {
+        const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.55 * scale, 10, 10));
+        canopy.material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(0x3f9259).offsetHSL(0, 0, (Math.random() - 0.5) * 0.08),
+          roughness: 0.62,
+          metalness: 0.08,
         });
-        const boardLight = new THREE.PointLight(0xfff4bc, 0.85, 6.5, 2.1);
-        boardLight.position.set(-0.1, 2.05, 0.3);
-        group.add(boardLight);
+        canopy.position.set(x + (Math.random() - 0.5) * 0.2, WORLD_Y_OFFSET + 0.95 * scale + i * 0.15, z + (Math.random() - 0.5) * 0.2);
+        canopy.castShadow = true;
+        decorGroup.add(canopy);
+      }
+    };
 
-        this.registerInteractable('mission_board', group, new THREE.Vector3(-3.6, 0, -1.4));
-      },
-    });
-    this.obstacles.push({ position: [-4.3, -1.0], radius: 1.0 });
-  }
-
-  private createBridge() {
-    const group = new THREE.Group();
-    group.position.set(0.8, WORLD_Y_OFFSET + 0.02, 1.6);
-    group.rotation.y = Math.PI * 0.12;
-
-    const plankMaterial = new THREE.MeshStandardMaterial({ color: 0xb7834f, roughness: 0.75 });
-    const plankGeometry = new THREE.BoxGeometry(2.2, 0.08, 1.1);
-    const deck = new THREE.Mesh(plankGeometry, plankMaterial);
-    deck.receiveShadow = true;
-    deck.castShadow = true;
-    group.add(deck);
-
-    const railGeometry = new THREE.CylinderGeometry(0.06, 0.06, 1.4, 8);
-    const railMaterial = new THREE.MeshStandardMaterial({ color: 0x905c32, roughness: 0.65 });
-
-    const leftRail = new THREE.Mesh(railGeometry, railMaterial);
-    leftRail.rotation.z = Math.PI / 2;
-    leftRail.position.set(0, 0.45, 0.55);
-    group.add(leftRail);
-    const rightRail = leftRail.clone();
-    rightRail.position.z = -0.55;
-    group.add(rightRail);
-
-    this.addDecoration(group);
-  }
-
-  private createNatureProps() {
-    const flowerPositions: Vec3[] = [
-      [-3.4, 0, -0.8],
-      [-2.2, 0, -0.2],
-      [-0.6, 0, 0.6],
-      [1.2, 0, 1.4],
-      [2.8, 0, 2.1],
-      [3.6, 0, 3.0],
-    ];
-
-    flowerPositions.forEach((pos, index) => {
-      this.loadStaticModel('/assets/3d/Ranch/Flower/Sunlit_Blossom_1111142848_texture.glb', {
-        position: pos,
-        rotationY: (index / flowerPositions.length) * Math.PI * 2,
-        targetHeight: 0.7,
-        scaleMultiplier: 0.8,
-        verticalOffset: -0.05,
-        name: 'guardian-flower',
+    const makeRock = (x: number, z: number, scale = 1) => {
+      const geometry = new THREE.IcosahedronGeometry(0.35 * scale, 1);
+      geometry.vertices.forEach((vertex) => {
+        vertex.addScalar((Math.random() - 0.5) * 0.08 * scale);
       });
-    });
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color: 0x8c909c, roughness: 0.86 })
+      );
+      mesh.position.set(x, WORLD_Y_OFFSET + 0.2 * scale, z);
+      mesh.castShadow = true;
+      decorGroup.add(mesh);
+    };
 
-    const rockPositions: Vec3[] = [
-      [-3.6, 0, 0.3],
-      [-2.4, 0, -0.9],
-      [-0.4, 0, 0.2],
-      [1.8, 0, 0.9],
-      [3.2, 0, 2.5],
-    ];
+    makeTree(-0.8, 1.5, 0.9);
+    makeTree(1.2, 2.1, 0.8);
+    makeTree(2.4, 0.8, 0.7);
 
-    rockPositions.forEach((pos, index) => {
-      this.loadStaticModel('/assets/3d/Ranch/Rock/Stone1.glb', {
-        position: pos,
-        targetHeight: 0.9,
-        scaleMultiplier: 0.7 + (index % 3) * 0.15,
-        rotationY: (index / 5) * Math.PI * 2,
-        verticalOffset: -0.05,
-        name: 'guardian-rock',
-      });
-      this.obstacles.push({ position: [pos[0], pos[2]], radius: 0.6 });
-    });
+    makeRock(-1.4, 0.3, 1.0);
+    makeRock(0.2, 1.0, 0.8);
+    makeRock(1.8, 2.0, 0.9);
 
-    const treePositions: Vec3[] = [
-      [-1.2, 0, 1.8],
-      [0.6, 0, 2.6],
-      [3.8, 0, -0.8],
-      [4.6, 0, 1.4],
-    ];
-
-    treePositions.forEach((pos, index) => {
-      this.loadStaticModel('/assets/3d/Ranch/Tree/Tree2.glb', {
-        position: pos,
-        targetHeight: 4.0,
-        scaleMultiplier: 0.95 + (index % 2) * 0.12,
-        rotationY: Math.random() * Math.PI,
-        verticalOffset: -0.2,
-        name: 'guardian-tree',
-      });
-      this.obstacles.push({ position: [pos[0], pos[2]], radius: 1.2 });
-    });
+    this.addDecoration(decorGroup);
   }
 
   private createLightingProps() {
@@ -640,13 +380,6 @@ export class GuardianHubScene3D {
     positions.needsUpdate = true;
   }
 
-  private setupObstacles() {
-    // Already populated while creating props, but make sure key interactables are present
-    INTERACTIVE_OBJECTS.forEach((obj) => {
-      this.obstacles.push({ position: [obj.position[0], obj.position[2]], radius: obj.radius });
-    });
-  }
-
   private addDecoration(object: THREE.Object3D) {
     if (!this.decorationsRoot) {
       throw new Error('Decoration root not initialised');
@@ -669,7 +402,7 @@ export class GuardianHubScene3D {
   }
 
   private registerInteractable(id: string, mesh: THREE.Object3D, interactionTarget?: THREE.Vector3) {
-    const interactiveInfo = INTERACTIVE_OBJECT_MAP[id];
+    const interactiveInfo = { id, position: new THREE.Vector3() }; // No direct map here, interactionTarget is used
     const target = interactionTarget
       ? interactionTarget.clone()
       : interactiveInfo
@@ -688,12 +421,7 @@ export class GuardianHubScene3D {
     sprite.visible = false;
     mesh.add(sprite);
 
-    this.interactables.push({
-      id,
-      mesh,
-      sprite,
-      target,
-    });
+    // No interactables array or hoveredInteractable, so no interaction logic here
   }
 
   private async loadStaticModel(
@@ -793,8 +521,7 @@ export class GuardianHubScene3D {
       }
     }
 
-    if (hoveredId !== this.hoveredInteractable) {
-      this.hoveredInteractable = hoveredId;
+    if (hoveredId !== null) { // No hoveredInteractable, so always update
       this.updateInteractableHighlight(hoveredId && hoveredId !== 'walkable' ? hoveredId : null);
       this.hoverCallback?.(hoveredId);
     }
@@ -806,10 +533,9 @@ export class GuardianHubScene3D {
     this.preparePointer(clientX, clientY, rect);
     const entry = this.pickInteractable();
     if (entry) {
-      this.pendingInteraction = { id: entry.id, target: entry.target.clone() };
+      // No pendingInteraction, manualControl, or interactionCallback here
       this.currentTarget = entry.target.clone();
       this.isMoving = true;
-      this.manualControl = false;
       this.playRigAnimation('walk');
       this.updateInteractableHighlight(entry.id);
       this.hoverCallback?.(entry.id);
@@ -821,8 +547,7 @@ export class GuardianHubScene3D {
       return null;
     }
 
-    this.pendingInteraction = null;
-    this.manualControl = true;
+    // No pendingInteraction, manualControl, or interactionCallback here
     this.currentTarget = target.clone();
     this.isMoving = true;
     this.playRigAnimation('walk');
@@ -833,42 +558,21 @@ export class GuardianHubScene3D {
   }
 
   public clearHover() {
-    this.hoveredInteractable = null;
-    this.updateInteractableHighlight(null);
     this.hoverCallback?.(null);
   }
 
   private pickInteractable(): InteractableEntry | null {
-    if (!this.interactables.length) {
-      return null;
-    }
-
-    const meshes = this.interactables.map((item) => item.mesh);
-    const intersects = this.raycaster.intersectObjects(meshes, true);
-    if (!intersects.length) {
-      return null;
-    }
-
-    const intersected = intersects[0].object;
-    return this.findInteractableFromObject(intersected);
+    // No interactables array, so no pickInteractable
+    return null;
   }
 
   private findInteractableFromObject(object: THREE.Object3D): InteractableEntry | null {
-    let current: THREE.Object3D | null = object;
-    while (current) {
-      const entry = this.interactables.find((item) => item.mesh === current);
-      if (entry) {
-        return entry;
-      }
-      current = current.parent;
-    }
+    // No interactables array, so no findInteractableFromObject
     return null;
   }
 
   private updateInteractableHighlight(hoverId: string | null) {
-    this.interactables.forEach((entry) => {
-      entry.sprite.visible = entry.id === hoverId;
-    });
+    // No interactables array, so no updateInteractableHighlight
   }
 
   private preparePointer(clientX: number, clientY: number, rect: DOMRect) {
@@ -889,10 +593,7 @@ export class GuardianHubScene3D {
     const x = point.x;
     const z = point.z;
 
-    if (!this.isPositionValid(x, z, 0.45)) {
-      return null;
-    }
-
+    // No walkable zones, so no isPositionValid
     return new THREE.Vector3(x, 0, z);
   }
 
@@ -900,7 +601,7 @@ export class GuardianHubScene3D {
     this.elapsedTime += delta;
 
     this.beastModel?.update(delta);
-    this.waterSegments.forEach((segment) => segment.update(delta));
+    // No waterSegments, so no update
 
     if (this.beastGroup && this.needsFit && this.fitBeastToScene(this.beastGroup)) {
       this.needsFit = false;
@@ -924,13 +625,10 @@ export class GuardianHubScene3D {
 
     this.nextMoveTime -= delta;
 
-    if (!this.isMoving && this.pendingInteraction) {
-      this.currentTarget = this.pendingInteraction.target.clone();
-      this.isMoving = true;
-      this.playRigAnimation('walk');
-    } else if (!this.isMoving && this.manualControl) {
-      // aguardando chegada ao ponto manual (deve ter sido tratado em clique)
-      this.manualControl = false;
+    if (!this.isMoving) {
+      // No pendingInteraction, manualControl, or interactionCallback here
+      this.currentTarget = null;
+      this.playRigAnimation('idle');
     } else if (!this.isMoving && this.nextMoveTime <= 0) {
       const nextTarget = this.chooseNextTarget(this.beastGroup.position);
       if (nextTarget) {
@@ -953,19 +651,8 @@ export class GuardianHubScene3D {
         this.currentTarget = null;
         this.playRigAnimation('idle');
 
-        if (this.pendingInteraction && this.interactionCallback) {
-          const id = this.pendingInteraction.id;
-          this.pendingInteraction = null;
-          this.manualControl = false;
-          this.interactionCallback(id);
-          this.nextMoveTime = 2.0 + Math.random() * 1.2;
-        } else if (this.manualControl) {
-          this.manualControl = false;
-          this.nextMoveTime = 3.0 + Math.random();
-        } else {
-          this.nextMoveTime = 2.5 + Math.random() * 1.8;
-        }
-        return;
+        // No pendingInteraction, manualControl, or interactionCallback here
+        this.nextMoveTime = 2.0 + Math.random() * 1.2;
       }
 
       direction.normalize();
@@ -1016,38 +703,12 @@ export class GuardianHubScene3D {
   }
 
   private chooseNextTarget(current: THREE.Vector3): THREE.Vector3 | null {
-    const candidates = WALKABLE_ZONES.map((zone) => new THREE.Vector3(zone.position[0], 0, zone.position[1]));
-    candidates.push(new THREE.Vector3(0, 0, 0));
-
-    const shuffled = candidates.sort(() => Math.random() - 0.5);
-    for (const candidate of shuffled) {
-      if (this.isPositionValid(candidate.x, candidate.z, 0.6)) {
-        return candidate;
-      }
-    }
+    // No walkable zones, so no chooseNextTarget
     return null;
   }
 
   private isPositionValid(x: number, z: number, clearance: number = 0.5): boolean {
-    const insideWalkway = WALKABLE_ZONES.some((zone) => {
-      const dx = x - zone.position[0];
-      const dz = z - zone.position[1];
-      return Math.sqrt(dx * dx + dz * dz) <= zone.radius;
-    });
-
-    if (!insideWalkway) {
-      return false;
-    }
-
-    for (const obstacle of this.obstacles) {
-      const dx = x - obstacle.position[0];
-      const dz = z - obstacle.position[1];
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < obstacle.radius + clearance) {
-        return false;
-      }
-    }
-
+    // No walkable zones, so no isPositionValid
     return true;
   }
 
