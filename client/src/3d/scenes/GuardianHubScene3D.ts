@@ -84,22 +84,9 @@ export class GuardianHubScene3D {
   }
 
   private createProceduralGround() {
-    const groundSize = 104; // 200% do tamanho original (52 -> 104)
-    const geometry = new THREE.PlaneGeometry(groundSize, groundSize, 80, 80);
-    const positions = geometry.attributes.position as THREE.BufferAttribute;
-
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i);
-      const radialFalloff = 1 - Math.min(1, Math.sqrt(x * x + z * z) / (groundSize * 0.55));
-      const noise =
-        Math.sin(x * 0.12) * 0.05 +
-        Math.cos(z * 0.08) * 0.04 +
-        Math.sin((x + z) * 0.07) * 0.03;
-      positions.setY(i, noise * radialFalloff);
-    }
-    positions.needsUpdate = true;
-    geometry.computeVertexNormals();
+    // Único chão visível: disco verde tipo ilha/floresta
+    const radius = 18; // um pouco maior para dar mais espaço para caminhar
+    const geometry = new THREE.CircleGeometry(radius, 72);
 
     const material = new THREE.MeshStandardMaterial({
       color: 0x2d5016, // Verde floresta escuro
@@ -107,19 +94,11 @@ export class GuardianHubScene3D {
       metalness: 0.04,
     });
 
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = WORLD_Y_OFFSET;
-    mesh.receiveShadow = true;
-    this.addDecoration(mesh);
-
-    const path = new THREE.Mesh(
-      new THREE.CircleGeometry(16, 64),
-      new THREE.MeshStandardMaterial({ color: 0x346b1f, roughness: 0.7, metalness: 0.04 })
-    );
-    path.rotation.x = -Math.PI / 2;
-    path.position.y = WORLD_Y_OFFSET + 0.02;
-    this.addDecoration(path);
+    const ground = new THREE.Mesh(geometry, material);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = WORLD_Y_OFFSET;
+    ground.receiveShadow = true;
+    this.addDecoration(ground);
   }
 
   private createProceduralRiver() {
