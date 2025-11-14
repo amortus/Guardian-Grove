@@ -93,7 +93,7 @@ router.get('/recent-visitors', authenticateToken, async (req: AuthRequest, res) 
       timestamp: row.updated_at
     }));
 
-    res.json({ visitors });
+    res.json({ success: true, data: { visitors } });
   } catch (error) {
     console.error('Error fetching recent visitors:', error);
     res.status(500).json({ error: 'Failed to fetch visitors' });

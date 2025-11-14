@@ -803,12 +803,13 @@ export class GuardianHubScene3D {
       
       console.log('[Ghost] 🔍 Fetch response:', response);
       
-      if (response.success && response.data) {
+      // Response structure is { success: true, data: { visitors: [...] } }
+      if (response.success && response.data && response.data.visitors) {
         const visitors = response.data.visitors;
         console.log('[Ghost] 👥 Found visitors:', visitors.length, visitors);
         
         // Remove ghosts that are no longer in the visitor list
-        const visitorNames = new Set(visitors.map(v => v.playerName));
+        const visitorNames = new Set(visitors.map((v: any) => v.playerName));
         for (const [name, ghost] of this.ghostPlayers.entries()) {
           if (!visitorNames.has(name)) {
             console.log('[Ghost] 🗑️ Removing ghost:', name);
@@ -821,7 +822,7 @@ export class GuardianHubScene3D {
           await this.addOrUpdateGhost(visitor);
         }
       } else {
-        console.log('[Ghost] ⚠️ No visitors data in response');
+        console.log('[Ghost] ⚠️ No visitors data in response', response);
       }
     } catch (error) {
       console.error('[Ghost] ❌ Failed to fetch visitors:', error);
