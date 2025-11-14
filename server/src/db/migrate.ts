@@ -7,6 +7,14 @@ import fs from 'fs';
 import path from 'path';
 import { pool } from './connection';
 
+const DUPLICATE_CODES = new Set([
+  '42P07', // duplicate_table / duplicate_index
+  '42710', // duplicate_object
+  '42723', // duplicate_function
+  '42P16', // invalid_table_definition (often triggered when column already exists)
+  '23505', // unique_violation (e.g., inserting same migration)
+]);
+
 async function runMigrations() {
   console.log('[Migration] Starting database migrations...');
   
@@ -65,8 +73,20 @@ async function runMigrations() {
       );
       await pool.query('COMMIT');
       console.log(`[Migration] ✓ ${file} completed successfully`);
-    } catch (error) {
+    } catch (error: any) {
       await pool.query('ROLLBACK');
+
+      if (error?.code && DUPLICATE_CODES.has(error.code)) {
+        console.warn(
+          `[Migration] ⚠️  ${file} appears to be already applied (code ${error.code}). Marking as completed.`
+        );
+        await pool.query(
+          'INSERT INTO migration_history (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING',
+          [file]
+        );
+        continue;
+      }
+
       console.error(`[Migration] ✗ ${file} failed:`, error);
       throw error;
     }
