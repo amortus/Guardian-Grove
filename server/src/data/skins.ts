@@ -1,6 +1,6 @@
 /**
  * Skin System Data - Guardian Grove Server
- * Shared skin definitions (server-side copy)
+ * Usa as 10 beasts reais do jogo
  */
 
 export interface Skin {
@@ -11,15 +11,25 @@ export interface Skin {
   icon: string;
   rarity: 'starter' | 'common' | 'rare' | 'epic' | 'legendary';
   price: number;
-  category: 'guardian' | 'beast' | 'special';
+  category: 'guardian';
 }
 
-// ===== SKINS INICIAIS (3 Guardiões Básicos) =====
+// ===== 3 SKINS INICIAIS =====
 export const STARTER_SKINS: Skin[] = [
+  {
+    id: 'brontis',
+    name: 'Brontis',
+    description: 'Réptil Colosso. Lagarto bípede robusto com escamas verdes. Ótimo para iniciantes!',
+    model: 'Brontis',
+    icon: '🦎',
+    rarity: 'starter',
+    price: 0,
+    category: 'guardian',
+  },
   {
     id: 'feralis',
     name: 'Feralis',
-    description: 'O guardião da floresta, ágil e veloz como o vento.',
+    description: 'Felino Selvagem. Ágil e veloz, perfeito para ataques críticos rápidos.',
     model: 'Feralis',
     icon: '🐺',
     rarity: 'starter',
@@ -27,120 +37,89 @@ export const STARTER_SKINS: Skin[] = [
     category: 'guardian',
   },
   {
-    id: 'terramor',
-    name: 'Terramor',
-    description: 'O guardião da terra, forte e resistente como as montanhas.',
-    model: 'Terramor',
-    icon: '🐻',
-    rarity: 'starter',
-    price: 0,
-    category: 'guardian',
-  },
-  {
-    id: 'aqualis',
-    name: 'Aqualis',
-    description: 'O guardião das águas, fluido e adaptável como o oceano.',
-    model: 'Aqualis',
-    icon: '🐚',
+    id: 'sylphid',
+    name: 'Sylphid',
+    description: 'Espírito Etéreo. Especialista em magia, corpo translúcido com asas de luz.',
+    model: 'Sylphid',
+    icon: '✨',
     rarity: 'starter',
     price: 0,
     category: 'guardian',
   },
 ];
 
-// ===== SKINS DA LOJA (Premium) =====
+// ===== 7 SKINS DA LOJA =====
 export const SHOP_SKINS: Skin[] = [
   {
-    id: 'sylvaris',
-    name: 'Sylvaris',
-    description: 'Espírito da floresta anciã, protetor das árvores sagradas.',
-    model: 'Sylvaris',
-    icon: '🦌',
+    id: 'terravox',
+    name: 'Terravox',
+    description: 'Golem de Pedra. Criatura massiva com cristais no peito. Tanque natural!',
+    model: 'Terravox',
+    icon: '🗿',
     rarity: 'common',
-    price: 500,
+    price: 800,
     category: 'guardian',
   },
   {
-    id: 'ignatius',
-    name: 'Ignatius',
-    description: 'Guardião das chamas, traz o calor do sol para o Grove.',
-    model: 'Ignatius',
-    icon: '🔥',
+    id: 'mirella',
+    name: 'Mirella',
+    description: 'Criatura Anfíbia. Corpo azul-esverdeado, amigável e equilibrada.',
+    model: 'Mirella',
+    icon: '🐸',
     rarity: 'common',
     price: 750,
     category: 'guardian',
   },
   {
-    id: 'lumina',
-    name: 'Lumina',
-    description: 'Ser de luz pura, ilumina os caminhos mais escuros.',
-    model: 'Lumina',
-    icon: '✨',
+    id: 'zephyra',
+    name: 'Zephyra',
+    description: 'Ave de Vento. Plumagem brilhante, esquiva altíssima e muito veloz!',
+    model: 'Zephyra',
+    icon: '🦅',
     rarity: 'rare',
-    price: 1500,
-    category: 'special',
-  },
-  {
-    id: 'umbra',
-    name: 'Umbra',
-    description: 'Guardião das sombras, protetor da noite e dos sonhos.',
-    model: 'Umbra',
-    icon: '🌙',
-    rarity: 'rare',
-    price: 2000,
-    category: 'special',
-  },
-  {
-    id: 'glacius',
-    name: 'Glacius',
-    description: 'Senhor do gelo, traz o inverno para o santuário.',
-    model: 'Glacius',
-    icon: '❄️',
-    rarity: 'rare',
-    price: 2500,
+    price: 1800,
     category: 'guardian',
   },
   {
-    id: 'tempestus',
-    name: 'Tempestus',
-    description: 'Mestre das tempestades, controla ventos e trovões.',
-    model: 'Tempestus',
-    icon: '⚡',
+    id: 'umbrix',
+    name: 'Umbrix',
+    description: 'Besta Sombria. Coberta por fumaça negra, drena essência dos inimigos.',
+    model: 'Umbrix',
+    icon: '👁️',
+    rarity: 'rare',
+    price: 2200,
+    category: 'guardian',
+  },
+  {
+    id: 'ignar',
+    name: 'Ignar',
+    description: 'Fera Ígnea. Crina flamejante, golpes devastadores de fogo!',
+    model: 'Ignar',
+    icon: '🔥',
     rarity: 'epic',
     price: 3500,
     category: 'guardian',
   },
   {
-    id: 'verdantis',
-    name: 'Verdantis',
-    description: 'Guardião ancestral da natureza, faz plantas crescerem.',
-    model: 'Verdantis',
-    icon: '🌿',
+    id: 'olgrim',
+    name: 'Olgrim',
+    description: 'Olho Ancestral. Globo ocular flutuante com tentáculos, mestre da magia!',
+    model: 'Olgrim',
+    icon: '👁️‍🗨️',
     rarity: 'epic',
-    price: 4000,
-    category: 'special',
+    price: 4200,
+    category: 'guardian',
   },
   {
-    id: 'celestia',
-    name: 'Celestia',
-    description: 'Guardião celestial, desceu dos céus para proteger o Grove.',
-    model: 'Celestia',
-    icon: '🌟',
+    id: 'raukor',
+    name: 'Raukor',
+    description: 'Lobo Ancestral. Pelagem prateada, cicatrizes lunares. O mais poderoso!',
+    model: 'Raukor',
+    icon: '🐺',
     rarity: 'legendary',
-    price: 7500,
-    category: 'special',
-  },
-  {
-    id: 'chronos',
-    name: 'Chronos',
-    description: 'Guardião do tempo, pode ver passado e futuro.',
-    model: 'Chronos',
-    icon: '⏳',
-    rarity: 'legendary',
-    price: 10000,
-    category: 'special',
+    price: 8000,
+    category: 'guardian',
   },
 ];
 
 export const ALL_SKINS = [...STARTER_SKINS, ...SHOP_SKINS];
-

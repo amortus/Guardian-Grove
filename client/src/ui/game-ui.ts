@@ -802,15 +802,7 @@ export class GameUI {
       color: GLASS_THEME.palette.accent.green,
     });
 
-    const subtitle = beast
-      ? 'Interaja com o santuário para treinar e administrar o seu guardião'
-      : 'Selecione um guardião para começar a proteger o Grove';
-    drawText(this.ctx, subtitle, this.canvas.width / 2, 66, {
-      align: 'center',
-      font: '14px monospace',
-      color: 'rgba(215, 235, 227, 0.75)',
-      shadow: false,
-    });
+    // Subtitle removido - informações movidas para menu de Ajuda
   }
   
   private drawTopMenu(buttonY: number, buttonHeight: number) {
@@ -825,9 +817,9 @@ export class GameUI {
       { id: 'skin_manager', icon: '🎭', label: 'Trocar Skin', action: () => this.onOpenSkinManager() },
     ];
     
-    // Nova posição: abaixo das informações de Coronas/Level
-    // buttonY original era ~20, agora vai ser ~100 (abaixo dos chips)
-    const newButtonY = 100;
+    // Nova posição: mais abaixo para não cobrir tanto o 3D
+    // buttonY: 100 → 160 (mais espaçado)
+    const newButtonY = 160;
     const newButtonHeight = 42;
     
     const btnWidth = 140;
@@ -949,7 +941,9 @@ export class GameUI {
     });
   }
 
+  // Hints removidos - informações movidas para menu de Ajuda
   private drawInteractionHints() {
+    return; // Desativado
     const primary = 'Clique no chão para caminhar • Interaja com objetos iluminados para abrir menus';
     const secondary = 'Use WASD ou o mouse para mover seu guardião pelo santuário';
 

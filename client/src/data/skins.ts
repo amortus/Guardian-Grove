@@ -1,32 +1,41 @@
 /**
  * Sistema de Skins - Guardian Grove
- * Gerencia todas as skins dos guardiões
+ * Usa as 10 beasts reais do jogo
  */
 
 export interface Skin {
   id: string;
   name: string;
   description: string;
-  model: string; // Nome do arquivo .glb
+  model: string; // Nome do arquivo .glb (nome da beast)
   icon: string;
   rarity: 'starter' | 'common' | 'rare' | 'epic' | 'legendary';
   price: number; // 0 = grátis/starter
   isOwned: boolean;
   isActive: boolean;
-  category: 'guardian' | 'beast' | 'special';
-  stats?: {
-    speed?: number;
-    power?: number;
-    defense?: number;
-  };
+  category: 'guardian';
+  affinity: string; // Ex: "earth", "fire", etc
 }
 
-// ===== SKINS INICIAIS (3 Guardiões Básicos) =====
+// ===== 3 SKINS INICIAIS (Escolha no início do jogo) =====
 export const STARTER_SKINS: Skin[] = [
+  {
+    id: 'brontis',
+    name: 'Brontis',
+    description: 'Réptil Colosso. Lagarto bípede robusto com escamas verdes. Ótimo para iniciantes!',
+    model: 'Brontis',
+    icon: '🦎',
+    rarity: 'starter',
+    price: 0,
+    isOwned: true,
+    isActive: false,
+    category: 'guardian',
+    affinity: 'earth/fire',
+  },
   {
     id: 'feralis',
     name: 'Feralis',
-    description: 'O guardião da floresta, ágil e veloz como o vento.',
+    description: 'Felino Selvagem. Ágil e veloz, perfeito para ataques críticos rápidos.',
     model: 'Feralis',
     icon: '🐺',
     rarity: 'starter',
@@ -34,161 +43,122 @@ export const STARTER_SKINS: Skin[] = [
     isOwned: true,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 8, power: 6, defense: 5 },
+    affinity: 'air',
   },
   {
-    id: 'terramor',
-    name: 'Terramor',
-    description: 'O guardião da terra, forte e resistente como as montanhas.',
-    model: 'Terramor',
-    icon: '🐻',
+    id: 'sylphid',
+    name: 'Sylphid',
+    description: 'Espírito Etéreo. Especialista em magia, corpo translúcido com asas de luz.',
+    model: 'Sylphid',
+    icon: '✨',
     rarity: 'starter',
     price: 0,
     isOwned: true,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 5, power: 8, defense: 9 },
-  },
-  {
-    id: 'aqualis',
-    name: 'Aqualis',
-    description: 'O guardião das águas, fluido e adaptável como o oceano.',
-    model: 'Aqualis',
-    icon: '🐚',
-    rarity: 'starter',
-    price: 0,
-    isOwned: true,
-    isActive: false,
-    category: 'guardian',
-    stats: { speed: 7, power: 7, defense: 7 },
+    affinity: 'light/ether',
   },
 ];
 
-// ===== SKINS DA LOJA (Premium) =====
+// ===== 7 SKINS DA LOJA (Premium) =====
 export const SHOP_SKINS: Skin[] = [
   // Comuns (500-1000 Coronas)
   {
-    id: 'sylvaris',
-    name: 'Sylvaris',
-    description: 'Espírito da floresta anciã, protetor das árvores sagradas.',
-    model: 'Sylvaris',
-    icon: '🦌',
+    id: 'terravox',
+    name: 'Terravox',
+    description: 'Golem de Pedra. Criatura massiva com cristais no peito. Tanque natural!',
+    model: 'Terravox',
+    icon: '🗿',
     rarity: 'common',
-    price: 500,
+    price: 800,
     isOwned: false,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 7, power: 6, defense: 6 },
+    affinity: 'earth',
   },
   {
-    id: 'ignatius',
-    name: 'Ignatius',
-    description: 'Guardião das chamas, traz o calor do sol para o Grove.',
-    model: 'Ignatius',
-    icon: '🔥',
+    id: 'mirella',
+    name: 'Mirella',
+    description: 'Criatura Anfíbia. Corpo azul-esverdeado, amigável e equilibrada.',
+    model: 'Mirella',
+    icon: '🐸',
     rarity: 'common',
     price: 750,
     isOwned: false,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 8, power: 9, defense: 4 },
+    affinity: 'water',
   },
   
   // Raros (1500-2500 Coronas)
   {
-    id: 'lumina',
-    name: 'Lumina',
-    description: 'Ser de luz pura, ilumina os caminhos mais escuros.',
-    model: 'Lumina',
-    icon: '✨',
+    id: 'zephyra',
+    name: 'Zephyra',
+    description: 'Ave de Vento. Plumagem brilhante, esquiva altíssima e muito veloz!',
+    model: 'Zephyra',
+    icon: '🦅',
     rarity: 'rare',
-    price: 1500,
-    isOwned: false,
-    isActive: false,
-    category: 'special',
-    stats: { speed: 9, power: 7, defense: 6 },
-  },
-  {
-    id: 'umbra',
-    name: 'Umbra',
-    description: 'Guardião das sombras, protetor da noite e dos sonhos.',
-    model: 'Umbra',
-    icon: '🌙',
-    rarity: 'rare',
-    price: 2000,
-    isOwned: false,
-    isActive: false,
-    category: 'special',
-    stats: { speed: 10, power: 6, defense: 5 },
-  },
-  {
-    id: 'glacius',
-    name: 'Glacius',
-    description: 'Senhor do gelo, traz o inverno para o santuário.',
-    model: 'Glacius',
-    icon: '❄️',
-    rarity: 'rare',
-    price: 2500,
+    price: 1800,
     isOwned: false,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 6, power: 8, defense: 8 },
+    affinity: 'air',
+  },
+  {
+    id: 'umbrix',
+    name: 'Umbrix',
+    description: 'Besta Sombria. Coberta por fumaça negra, drena essência dos inimigos.',
+    model: 'Umbrix',
+    icon: '👁️',
+    rarity: 'rare',
+    price: 2200,
+    isOwned: false,
+    isActive: false,
+    category: 'guardian',
+    affinity: 'shadow',
   },
   
   // Épicas (3000-5000 Coronas)
   {
-    id: 'tempestus',
-    name: 'Tempestus',
-    description: 'Mestre das tempestades, controla ventos e trovões.',
-    model: 'Tempestus',
-    icon: '⚡',
+    id: 'ignar',
+    name: 'Ignar',
+    description: 'Fera Ígnea. Crina flamejante, golpes devastadores de fogo!',
+    model: 'Ignar',
+    icon: '🔥',
     rarity: 'epic',
     price: 3500,
     isOwned: false,
     isActive: false,
     category: 'guardian',
-    stats: { speed: 9, power: 9, defense: 6 },
+    affinity: 'fire',
   },
   {
-    id: 'verdantis',
-    name: 'Verdantis',
-    description: 'Guardião ancestral da natureza, faz plantas crescerem.',
-    model: 'Verdantis',
-    icon: '🌿',
+    id: 'olgrim',
+    name: 'Olgrim',
+    description: 'Olho Ancestral. Globo ocular flutuante com tentáculos, mestre da magia!',
+    model: 'Olgrim',
+    icon: '👁️‍🗨️',
     rarity: 'epic',
-    price: 4000,
+    price: 4200,
     isOwned: false,
     isActive: false,
-    category: 'special',
-    stats: { speed: 6, power: 8, defense: 9 },
+    category: 'guardian',
+    affinity: 'shadow/ether',
   },
   
-  // Lendárias (7500-10000 Coronas)
+  // Lendárias (7500+ Coronas)
   {
-    id: 'celestia',
-    name: 'Celestia',
-    description: 'Guardião celestial, desceu dos céus para proteger o Grove.',
-    model: 'Celestia',
-    icon: '🌟',
+    id: 'raukor',
+    name: 'Raukor',
+    description: 'Lobo Ancestral. Pelagem prateada, cicatrizes lunares. O mais poderoso!',
+    model: 'Raukor',
+    icon: '🐺',
     rarity: 'legendary',
-    price: 7500,
+    price: 8000,
     isOwned: false,
     isActive: false,
-    category: 'special',
-    stats: { speed: 10, power: 10, defense: 8 },
-  },
-  {
-    id: 'chronos',
-    name: 'Chronos',
-    description: 'Guardião do tempo, pode ver passado e futuro.',
-    model: 'Chronos',
-    icon: '⏳',
-    rarity: 'legendary',
-    price: 10000,
-    isOwned: false,
-    isActive: false,
-    category: 'special',
-    stats: { speed: 10, power: 9, defense: 10 },
+    category: 'guardian',
+    affinity: 'moon/blood',
   },
 ];
 
@@ -205,7 +175,7 @@ export interface SkinState {
 export function getDefaultSkinState(): SkinState {
   return {
     ownedSkins: STARTER_SKINS.map(s => s.id), // Começa com as 3 básicas
-    activeSkinId: 'feralis', // Feralis é o padrão
+    activeSkinId: 'brontis', // Brontis é o padrão
     totalSpent: 0,
   };
 }
@@ -312,8 +282,6 @@ export function getSkinModelPath(skinId: string): string {
   const skin = ALL_SKINS.find(s => s.id === skinId);
   if (!skin) return '/assets/3d/beasts/Feralis';
   
-  // Por enquanto, todos usam Feralis como base
-  // Quando adicionar novos modelos, atualizar aqui
+  // Usa o nome da beast como path do modelo
   return `/assets/3d/beasts/${skin.model}`;
 }
-
