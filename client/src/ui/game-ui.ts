@@ -806,7 +806,7 @@ export class GameUI {
   }
   
   private drawTopMenu(buttonY: number, buttonHeight: number) {
-    // Menu de ações principais (SEM Status, movido para baixo)
+    // Menu de ações principais (SEM Status, movido para baixo) + Ajuda
     const menuItems = [
       { id: 'inventory', icon: '🎒', label: 'Inventário', action: () => this.onOpenInventory() },
       { id: 'achievements', icon: '🏆', label: 'Conquistas', action: () => this.onOpenAchievements() },
@@ -815,6 +815,7 @@ export class GameUI {
       { id: 'minigames', icon: '🎮', label: 'Mini-Games', action: () => this.onOpenMinigames() },
       { id: 'skin_shop', icon: '🛒', label: 'Loja Skins', action: () => this.onOpenSkinShop() },
       { id: 'skin_manager', icon: '🎭', label: 'Trocar Skin', action: () => this.onOpenSkinManager() },
+      { id: 'help', icon: '📖', label: 'Ajuda', action: () => this.onOpenHelp() },
     ];
     
     // Nova posição: mais abaixo para não cobrir tanto o 3D
@@ -1832,6 +1833,7 @@ export class GameUI {
   public onOpenExploration: () => void = () => {};
   public onNavigate: (screen: string) => void = () => {};
   public onOpenSettings: () => void = () => {};
+  public onOpenHelp: () => void = () => {};
   public onOpenSkinShop: () => void = () => {};
   public onOpenSkinManager: () => void = () => {};
   public onLogout: () => void = () => {};

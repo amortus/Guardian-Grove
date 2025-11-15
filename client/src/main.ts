@@ -30,6 +30,7 @@ import { MinigamesMenuUI } from './ui/minigames-menu-ui';
 import { MemoryGameUI } from './ui/memory-game-ui';
 import type { MinigameType } from './ui/minigames-menu-ui';
 import { SettingsUI, type SettingsData } from './ui/settings-ui';
+import { HelpUI } from './ui/help-ui';
 import { CharacterSelectUI } from './ui/character-select-ui';
 import { SkinShopUI } from './ui/skin-shop-ui';
 import { SkinManagerUI } from './ui/skin-manager-ui';
@@ -307,6 +308,7 @@ let dailySpinUICanvas: DailySpinUICanvas | null = null;
 let minigamesMenuUI: MinigamesMenuUI | null = null;
 let memoryGameUI: MemoryGameUI | null = null;
 let settingsUI: SettingsUI | null = null;
+let helpUI: HelpUI | null = null;
 let characterSelectUI: CharacterSelectUI | null = null;
 let skinShopUI: SkinShopUI | null = null;
 let skinManagerUI: SkinManagerUI | null = null;
@@ -333,6 +335,7 @@ let inDailySpinCanvas = false;
 let inMinigamesMenu = false;
 let inMemoryGame = false;
 let inSettings = false;
+let inHelp = false;
 let inCharacterSelect = false;
 let inSkinShop = false;
 let inSkinManager = false;
@@ -483,6 +486,8 @@ function startRenderLoop() {
       memoryGameUI.draw(gameState, delta);
     } else if (inSettings && settingsUI && gameState) {
       settingsUI.draw(gameState);
+    } else if (inHelp && helpUI) {
+      helpUI.render();
     } else if (inCharacterSelect && characterSelectUI && gameState) {
       characterSelectUI.draw(gameState);
     } else if (inSkinShop && skinShopUI && gameState) {
@@ -1308,6 +1313,11 @@ async function setupGame() {
     // Setup settings callback
     gameUI.onOpenSettings = () => {
       openSettings();
+    };
+    
+    // Setup help callback
+    gameUI.onOpenHelp = () => {
+      openHelp();
     };
     
     // Setup skin shop callback
@@ -3231,6 +3241,47 @@ function closeSettings() {
   }
   settingsUI = null;
   inSettings = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+}
+
+function openHelp() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+  if (inMinigamesMenu) closeMinigamesMenu();
+  if (inSettings) closeSettings();
+
+  inHelp = true;
+
+  if (!canvas) return;
+  
+  helpUI = new HelpUI(canvas);
+  helpUI.onClose = () => {
+    closeHelp();
+  };
+
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+}
+
+function closeHelp() {
+  if (helpUI) {
+    helpUI.dispose();
+  }
+  helpUI = null;
+  inHelp = false;
 
   if (gameUI) {
     gameUI.show3DViewer();

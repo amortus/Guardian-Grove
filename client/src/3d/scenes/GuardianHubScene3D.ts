@@ -531,9 +531,9 @@ export class GuardianHubScene3D {
     try {
       // Houses (3 casas espalhadas) - House1 ajustada (mais para trás e para baixo)
       const housePositions = [
-        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 2.5, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Moveu de z=-10 para z=-15 (mais para trás) e desceu um pouco
-        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.8, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) },
-        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.8, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) },
+        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 2.2, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Desceu de 2.5 para 2.2
+        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.5, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) }, // Desceu de 2.8 para 2.5
+        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.5, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) }, // Desceu de 2.8 para 2.5
       ];
       
       for (const house of housePositions) {
@@ -553,10 +553,10 @@ export class GuardianHubScene3D {
         await this.addLantern(loader, house.position.clone().add(house.lanternOffset));
       }
       
-      // Temple (templo central) - 4X MAIOR (aumentou mais um pouco), altura ajustada (um pouco mais baixo)
+      // Temple (templo central) - 4X MAIOR, altura ajustada (desceu um pouco)
       const templeGltf = await loader.loadAsync('/assets/3d/Village/Temple.glb');
       const templeModel = templeGltf.scene;
-      templeModel.position.set(0, WORLD_Y_OFFSET + 3.2, -18);
+      templeModel.position.set(0, WORLD_Y_OFFSET + 2.9, -18); // Desceu de 3.2 para 2.9
       templeModel.scale.setScalar(5.5); // 4x maior (aumentou de 4.5 para 5.5)
       templeModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -645,7 +645,7 @@ export class GuardianHubScene3D {
       for (const pos of treePositions) {
         const treeGltf = await loader.loadAsync('/assets/3d/Ranch/Tree/Tree1.glb');
         const treeModel = treeGltf.scene;
-        treeModel.position.set(pos.x, WORLD_Y_OFFSET + 1.7, pos.z); // Desceu um pouquinho de 2.0 para 1.7
+        treeModel.position.set(pos.x, WORLD_Y_OFFSET + 2.5, pos.z); // Subiu de 1.7 para 2.5 (menos enterradas)
         treeModel.scale.setScalar(3.0); // 2x maior (era 1.5, agora 3.0)
         treeModel.traverse((child) => {
           if (child instanceof THREE.Mesh) {
