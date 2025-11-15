@@ -117,14 +117,21 @@ export class GuardianHubScene3D {
     
     // WASD Controls
     window.addEventListener('keydown', (event) => {
+      if (this.isTypingInInput(event)) {
+        this.resetWASDKeys();
+        return;
+      }
       const key = event.key.toLowerCase();
       if (key === 'w') this.wasdKeys.w = true;
       if (key === 'a') this.wasdKeys.a = true;
       if (key === 's') this.wasdKeys.s = true;
       if (key === 'd') this.wasdKeys.d = true;
     });
-    
+
     window.addEventListener('keyup', (event) => {
+      if (this.isTypingInInput(event)) {
+        return;
+      }
       const key = event.key.toLowerCase();
       if (key === 'w') this.wasdKeys.w = false;
       if (key === 'a') this.wasdKeys.a = false;
@@ -534,9 +541,9 @@ export class GuardianHubScene3D {
     try {
       // Houses (3 casas espalhadas) - House1 ajustada (mais para trás e para baixo)
       const housePositions = [
-        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 1.9, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Desceu mais 0.3
-        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.2, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) }, // Desceu mais 0.3
-        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.2, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) }, // Desceu mais 0.3
+        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 2.1, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Subiu um pouco
+        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.4, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) },
+        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.4, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) },
       ];
       
       for (const house of housePositions) {
@@ -591,7 +598,7 @@ export class GuardianHubScene3D {
       // Market (loja) - Lanterna subida
       const marketGltf = await loader.loadAsync('/assets/3d/Village/Market.glb');
       this.marketModel = marketGltf.scene;
-      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.0, 5);
+      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.4, 5);
       this.marketModel.scale.setScalar(3.9); // 3x maior (1.3 -> 3.9)
       this.marketModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -831,6 +838,31 @@ export class GuardianHubScene3D {
     this.particlesSystem.userData.offsets = offsets;
 
     this.decorationsRoot.add(this.particlesSystem);
+  }
+
+  private resetWASDKeys() {
+    this.wasdKeys.w = false;
+    this.wasdKeys.a = false;
+    this.wasdKeys.s = false;
+    this.wasdKeys.d = false;
+    this.wasdMovement.set(0, 0, 0);
+  }
+
+  private isTypingInInput(event?: KeyboardEvent): boolean {
+    const check = (el: Element | null | undefined) => {
+      if (!el) return false;
+      const tag = el.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return true;
+      if ((el as HTMLElement).isContentEditable) return true;
+      return el.classList.contains('chat-input');
+    };
+
+    if (event && check(event.target as Element | null)) {
+      return true;
+    }
+
+    const active = document.activeElement;
+    return check(active);
   }
 
   private updateAmbientParticles() {
