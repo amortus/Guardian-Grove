@@ -18,13 +18,18 @@ export class SkinManagerUI {
   public onClose: (() => void) | null = null;
   public onSkinChanged: ((skinId: string) => void) | null = null;
   
+  // Bind methods once in constructor
+  private boundHandleClick = this.handleClick.bind(this);
+  private boundHandleMouseMove = this.handleMouseMove.bind(this);
+  private boundHandleWheel = this.handleWheel.bind(this);
+  
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     
-    this.canvas.addEventListener('click', this.handleClick.bind(this));
-    this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-    this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
+    this.canvas.addEventListener('click', this.boundHandleClick);
+    this.canvas.addEventListener('mousemove', this.boundHandleMouseMove);
+    this.canvas.addEventListener('wheel', this.boundHandleWheel);
     
     console.log('[SKIN MANAGER] 🔄 UI inicializada');
   }
@@ -454,9 +459,9 @@ export class SkinManagerUI {
   }
   
   dispose() {
-    this.canvas.removeEventListener('click', this.handleClick.bind(this));
-    this.canvas.removeEventListener('mousemove', this.handleMouseMove.bind(this));
-    this.canvas.removeEventListener('wheel', this.handleWheel.bind(this));
+    this.canvas.removeEventListener('click', this.boundHandleClick);
+    this.canvas.removeEventListener('mousemove', this.boundHandleMouseMove);
+    this.canvas.removeEventListener('wheel', this.boundHandleWheel);
   }
 }
 

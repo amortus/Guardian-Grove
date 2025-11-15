@@ -16,12 +16,16 @@ export class CharacterSelectUI {
   
   public onSelect: ((skinId: string) => void) | null = null;
   
+  // Bind methods once in constructor
+  private boundHandleClick = this.handleClick.bind(this);
+  private boundHandleMouseMove = this.handleMouseMove.bind(this);
+  
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     
-    this.canvas.addEventListener('click', this.handleClick.bind(this));
-    this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    this.canvas.addEventListener('click', this.boundHandleClick);
+    this.canvas.addEventListener('mousemove', this.boundHandleMouseMove);
     
     console.log('[CHARACTER SELECT] 🎭 UI inicializada');
   }
@@ -271,8 +275,8 @@ export class CharacterSelectUI {
   }
   
   dispose() {
-    this.canvas.removeEventListener('click', this.handleClick.bind(this));
-    this.canvas.removeEventListener('mousemove', this.handleMouseMove.bind(this));
+    this.canvas.removeEventListener('click', this.boundHandleClick);
+    this.canvas.removeEventListener('mousemove', this.boundHandleMouseMove);
   }
 }
 
