@@ -21,7 +21,7 @@ export interface BeastLineData {
 export const BEAST_LINES: Record<BeastLine, BeastLineData> = {
   olgrim: {
     line: 'olgrim',
-    name: 'Olgrim (Olho Ancestral)',
+    name: 'Olgrim (Mago Ancestral)',
     description: 'Um grande globo ocular flutuante com tentáculos etéreos. Sua pupila se contrai conforme sua emoção.',
     affinity: ['shadow', 'ether'],
     baseAttributes: {

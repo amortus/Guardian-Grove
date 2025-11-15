@@ -119,31 +119,33 @@ export class CharacterSelectUI {
       color: getRarityColor(skin.rarity),
     });
     
-    // Descrição (quebrada em 3 linhas)
-    const words = skin.description.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
+    // Preview card (substitui o bloco de descrição textual)
+    const previewWidth = width - 60;
+    const previewHeight = 140;
+    const previewX = x + 30;
+    const previewY = y + 200;
+    const previewGradient = this.ctx.createLinearGradient(previewX, previewY, previewX, previewY + previewHeight);
+    previewGradient.addColorStop(0, 'rgba(20, 40, 30, 0.95)');
+    previewGradient.addColorStop(1, 'rgba(10, 22, 16, 0.95)');
     
-    words.forEach(word => {
-      const testLine = currentLine + (currentLine ? ' ' : '') + word;
-      const metrics = this.ctx.measureText(testLine);
-      
-      if (metrics.width > width - 30 && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
+    this.ctx.fillStyle = previewGradient;
+    this.ctx.fillRect(previewX, previewY, previewWidth, previewHeight);
+    
+    this.ctx.strokeStyle = isSelected ? '#7DE8C4' : 'rgba(125, 232, 196, 0.3)';
+    this.ctx.lineWidth = 3;
+    this.ctx.strokeRect(previewX, previewY, previewWidth, previewHeight);
+    
+    drawText(this.ctx, skin.icon, previewX + previewWidth / 2, previewY + previewHeight / 2 - 5, {
+      align: 'center',
+      baseline: 'middle',
+      font: '100px monospace',
+      color: '#FFFFFF',
     });
     
-    if (currentLine) lines.push(currentLine);
-    
-    lines.slice(0, 3).forEach((line, i) => {
-      drawText(this.ctx, line, x + width / 2, y + 210 + (i * 22), {
-        align: 'center',
-        font: '16px monospace',
-        color: '#A0C9B5',
-      });
+    drawText(this.ctx, 'Visual do guardião', previewX + previewWidth / 2, previewY + previewHeight - 12, {
+      align: 'center',
+      font: '14px monospace',
+      color: '#A0C9B5',
     });
     
     // Stats
