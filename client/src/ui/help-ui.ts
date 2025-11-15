@@ -29,14 +29,18 @@ export class HelpUI {
 
   private handleMouseMove(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
-    this.mouseX = e.clientX - rect.left;
-    this.mouseY = e.clientY - rect.top;
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    this.mouseX = (e.clientX - rect.left) * scaleX;
+    this.mouseY = (e.clientY - rect.top) * scaleY;
   }
 
   private handleClick(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
 
     // Close button
     const panelWidth = 900;
@@ -84,21 +88,22 @@ export class HelpUI {
     // Content sections
     let currentY = panelY + 110;
     const leftMargin = panelX + 60;
-    const lineHeight = 30;
+    const lineHeight = 26;
+    const sectionSpacing = 34;
 
     // Seção 1: Movimentação
     this.drawSectionTitle('🎮 MOVIMENTAÇÃO', leftMargin, currentY);
-    currentY += 40;
+    currentY += sectionSpacing;
     this.drawHelpText('• Clique no chão verde para mover seu guardião', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• Use WASD para mover manualmente (W=frente, S=trás, A=esq, D=dir)', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• A câmera acompanha automaticamente seu guardião', leftMargin + 20, currentY);
-    currentY += lineHeight + 20;
+    currentY += lineHeight + 12;
 
     // Seção 2: Interação com o Santuário
     this.drawSectionTitle('🏛️ INTERAÇÃO COM O SANTUÁRIO', leftMargin, currentY);
-    currentY += 40;
+    currentY += sectionSpacing;
     this.drawHelpText('• Aproxime-se de construções iluminadas para interagir', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• Pressione [E] ou clique para abrir menus', leftMargin + 20, currentY);
@@ -114,11 +119,11 @@ export class HelpUI {
     this.drawHelpText('• 📋 Quadro de Missões: Aceite missões e desafios', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• 🌀 Portal de Exploração: Acesse missões educativas', leftMargin + 20, currentY);
-    currentY += lineHeight + 20;
+    currentY += lineHeight + 12;
 
     // Seção 3: Sistemas do Jogo
     this.drawSectionTitle('⚙️ SISTEMAS DO JOGO', leftMargin, currentY);
-    currentY += 40;
+    currentY += sectionSpacing;
     this.drawHelpText('• 💰 Coronas: Moeda do jogo (ganhe em missões e explorações)', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• 🎒 Inventário: Gerencie seus itens e equipamentos', leftMargin + 20, currentY);
@@ -132,7 +137,7 @@ export class HelpUI {
     this.drawHelpText('• 🎮 Mini-Games: Jogos educativos com recompensas', leftMargin + 20, currentY);
     currentY += lineHeight;
     this.drawHelpText('• 🎭 Skins: Personalize a aparência do seu guardião', leftMargin + 20, currentY);
-    currentY += lineHeight + 10;
+    currentY += lineHeight + 6;
 
     // Close button
     const closeBtnX = panelX + panelWidth - 60;

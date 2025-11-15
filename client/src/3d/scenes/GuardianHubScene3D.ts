@@ -599,7 +599,7 @@ export class GuardianHubScene3D {
       // Market (loja) - Lanterna subida
       const marketGltf = await loader.loadAsync('/assets/3d/Village/Market.glb');
       this.marketModel = marketGltf.scene;
-      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.4, 5);
+      this.marketModel.position.set(18, WORLD_Y_OFFSET + 2.8, 5);
       this.marketModel.scale.setScalar(3.9); // 3x maior (1.3 -> 3.9)
       this.marketModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
