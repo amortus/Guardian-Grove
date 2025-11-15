@@ -4,16 +4,16 @@
  */
 
 import { Router } from 'express';
-import { requireAuth, type AuthRequest } from '../middleware/auth';
+import { authenticateToken, type AuthRequest } from '../middleware/auth';
 import { pool } from '../db/connection';
-import { ALL_SKINS } from '../../../client/src/data/skins';
+import { ALL_SKINS } from '../data/skins';
 
 const router = Router();
 
 // ===== GET /api/skins - Get player's skins =====
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = (req as AuthRequest).userId;
+    const userId = (req as AuthRequest).user?.id;
     
     // Get player's owned skins
     const result = await pool.query(
@@ -48,9 +48,9 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // ===== POST /api/skins/purchase - Purchase a skin =====
-router.post('/purchase', requireAuth, async (req, res) => {
+router.post('/purchase', authenticateToken, async (req, res) => {
   try {
-    const userId = (req as AuthRequest).userId;
+    const userId = (req as AuthRequest).user?.id;
     const { skinId } = req.body;
     
     if (!skinId) {
@@ -129,9 +129,9 @@ router.post('/purchase', requireAuth, async (req, res) => {
 });
 
 // ===== POST /api/skins/change - Change active skin =====
-router.post('/change', requireAuth, async (req, res) => {
+router.post('/change', authenticateToken, async (req, res) => {
   try {
-    const userId = (req as AuthRequest).userId;
+    const userId = (req as AuthRequest).user?.id;
     const { skinId } = req.body;
     
     if (!skinId) {
