@@ -34,7 +34,7 @@ import { HelpUI } from './ui/help-ui';
 import { CharacterSelectUI } from './ui/character-select-ui';
 import { SkinShopUI } from './ui/skin-shop-ui';
 import { SkinManagerUI } from './ui/skin-manager-ui';
-import { getSkinState, getActiveSkin } from './data/skins';
+import { getSkinState, getActiveSkin, purchaseSkin as purchaseSkinLocal } from './data/skins';
 import { DungeonUI } from './ui/dungeon-ui';
 import { ModalUI } from './ui/modal-ui';
 import { ExplorationUI } from './ui/exploration-ui';
@@ -3402,6 +3402,7 @@ function openSkinShop() {
     if (!gameState) return;
     
     console.log(`[SKIN SHOP] 🛒 Tentando comprar skin: ${skinId} por ${price} Coronas`);
+    const previousCoronas = gameState.economy?.coronas ?? 0;
     
     try {
       // Comprar skin via API
@@ -3415,6 +3416,12 @@ function openSkinShop() {
           gameState.economy.coronas = response.data.newBalance;
         } else {
           gameState.economy.coronas -= price;
+        }
+        
+        // Atualizar estado local de skins (armazenado em localStorage)
+        const localResult = purchaseSkinLocal(skinId, previousCoronas);
+        if (!localResult.success) {
+          console.warn('[SKIN SHOP] ⚠️ Falha ao atualizar estado local das skins:', localResult.message);
         }
         
         // Sincronizar com servidor
