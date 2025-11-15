@@ -15,6 +15,7 @@ import friendsRoutes from './routes/friends';
 import inventoryRoutes from './routes/inventory';
 import progressRoutes from './routes/progress';
 import hubRoutes from './routes/hub';
+import skinRoutes from './routes/skins';
 import { pool } from './db/connection';
 import { runMigrations } from './db/migrate';
 import { startEventScheduler } from './services/eventScheduler';
@@ -108,6 +109,7 @@ app.use('/api/friends', friendsRoutes);
 
 // Hub routes (ghost system)
 app.use('/api/hub', hubRoutes);
+app.use('/api/skins', skinRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

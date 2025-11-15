@@ -159,5 +159,37 @@ export const gameApi = {
   }>> {
     return apiClient.get(`/hub/recent-visitors?limit=${limit}`);
   },
+  
+  // ===== SKIN SYSTEM =====
+  
+  /**
+   * Get player's skins
+   */
+  async getSkins(): Promise<ApiResponse<{ ownedSkins: string[]; activeSkinId: string }>> {
+    return apiClient.get('/skins');
+  },
+  
+  /**
+   * Purchase a skin
+   */
+  async purchaseSkin(skinId: string): Promise<ApiResponse<{ newBalance: number }>> {
+    return apiClient.post('/skins/purchase', { skinId });
+  },
+  
+  /**
+   * Change active skin
+   */
+  async changeSkin(skinId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return apiClient.post('/skins/change', { skinId });
+  },
+  
+  /**
+   * Save game state (placeholder for now)
+   */
+  async saveGameState(gameState: any): Promise<ApiResponse<any>> {
+    // TODO: Implementar sincronização completa do gameState
+    console.log('[GameAPI] Salvando gameState (placeholder):', gameState);
+    return { success: true, data: {}, error: '' };
+  },
 };
 

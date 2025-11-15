@@ -19,9 +19,21 @@ import { TempleUI } from './ui/temple-ui';
 import { DialogueUI } from './ui/dialogue-ui';
 import { ShopUI } from './ui/shop-ui';
 import { InventoryUI } from './ui/inventory-ui';
+import { StatusUI } from './ui/status-ui';
 import { CraftUI } from './ui/craft-ui';
 import { QuestsUI } from './ui/quests-ui';
 import { AchievementsUI } from './ui/achievements-ui';
+import { AchievementsUICanvas } from './ui/achievements-ui-canvas';
+import { LeaderboardUICanvas } from './ui/leaderboard-ui-canvas';
+import { DailySpinUICanvas } from './ui/daily-spin-ui-canvas';
+import { MinigamesMenuUI } from './ui/minigames-menu-ui';
+import { MemoryGameUI } from './ui/memory-game-ui';
+import type { MinigameType } from './ui/minigames-menu-ui';
+import { SettingsUI, type SettingsData } from './ui/settings-ui';
+import { CharacterSelectUI } from './ui/character-select-ui';
+import { SkinShopUI } from './ui/skin-shop-ui';
+import { SkinManagerUI } from './ui/skin-manager-ui';
+import { getSkinState, getActiveSkin } from './data/skins';
 import { DungeonUI } from './ui/dungeon-ui';
 import { ModalUI } from './ui/modal-ui';
 import { ExplorationUI } from './ui/exploration-ui';
@@ -285,9 +297,19 @@ let templeUI: TempleUI | null = null;
 let dialogueUI: DialogueUI | null = null;
 let shopUI: ShopUI | null = null;
 let inventoryUI: InventoryUI | null = null;
+let statusUI: StatusUI | null = null;
 let craftUI: CraftUI | null = null;
 let questsUI: QuestsUI | null = null;
 let achievementsUI: AchievementsUI | null = null;
+let achievementsUICanvas: AchievementsUICanvas | null = null;
+let leaderboardUICanvas: LeaderboardUICanvas | null = null;
+let dailySpinUICanvas: DailySpinUICanvas | null = null;
+let minigamesMenuUI: MinigamesMenuUI | null = null;
+let memoryGameUI: MemoryGameUI | null = null;
+let settingsUI: SettingsUI | null = null;
+let characterSelectUI: CharacterSelectUI | null = null;
+let skinShopUI: SkinShopUI | null = null;
+let skinManagerUI: SkinManagerUI | null = null;
 let dungeonUI: DungeonUI | null = null;
 let modalUI: ModalUI | null = null;
 let explorationUI: ExplorationUI | null = null;
@@ -301,9 +323,19 @@ let inTemple = false;
 let inDialogue = false;
 let inShop = false;
 let inInventory = false;
+let inStatus = false;
 let inCraft = false;
 let inQuests = false;
 let inAchievements = false;
+let inAchievementsCanvas = false;
+let inLeaderboardCanvas = false;
+let inDailySpinCanvas = false;
+let inMinigamesMenu = false;
+let inMemoryGame = false;
+let inSettings = false;
+let inCharacterSelect = false;
+let inSkinShop = false;
+let inSkinManager = false;
 let inDungeon = false;
 let inExploration = false;
 let inRanch3D = false;
@@ -428,12 +460,35 @@ function startRenderLoop() {
       shopUI.draw(gameState);
     } else if (inInventory && inventoryUI && gameState) {
       inventoryUI.draw(gameState);
+    } else if (inStatus && statusUI && gameState) {
+      statusUI.draw(gameState);
     } else if (inCraft && craftUI && gameState) {
       craftUI.draw(gameState);
     } else if (inQuests && questsUI && gameState) {
       questsUI.draw(gameState);
     } else if (inAchievements && achievementsUI && gameState) {
       achievementsUI.draw(gameState);
+    } else if (inAchievementsCanvas && achievementsUICanvas && gameState) {
+      achievementsUICanvas.draw(gameState);
+    } else if (inLeaderboardCanvas && leaderboardUICanvas && gameState) {
+      leaderboardUICanvas.draw(gameState);
+    } else if (inDailySpinCanvas && dailySpinUICanvas && gameState) {
+      const delta = 1 / 60; // Aproximação
+      dailySpinUICanvas.update(delta);
+      dailySpinUICanvas.draw(gameState, delta);
+    } else if (inMinigamesMenu && minigamesMenuUI && gameState) {
+      minigamesMenuUI.draw(gameState);
+    } else if (inMemoryGame && memoryGameUI && gameState) {
+      const delta = 1 / 60; // Aproximação
+      memoryGameUI.draw(gameState, delta);
+    } else if (inSettings && settingsUI && gameState) {
+      settingsUI.draw(gameState);
+    } else if (inCharacterSelect && characterSelectUI && gameState) {
+      characterSelectUI.draw(gameState);
+    } else if (inSkinShop && skinShopUI && gameState) {
+      skinShopUI.draw(gameState);
+    } else if (inSkinManager && skinManagerUI && gameState) {
+      skinManagerUI.draw(gameState);
     } else if (inDungeon && dungeonUI && gameState) {
       dungeonUI.draw(gameState);
     } else if (inExploration && explorationUI) {
@@ -1210,6 +1265,16 @@ async function setupGame() {
     gameUI.onOpenCraft = () => {
       openCraft();
     };
+    
+    // Setup shop callback
+    gameUI.onOpenShop = () => {
+      openShop();
+    };
+    
+    // Setup status callback
+    gameUI.onOpenStatus = () => {
+      openStatus();
+    };
 
     gameUI.onOpenArenaPvp = () => {
       openArenaPvp();
@@ -1220,9 +1285,39 @@ async function setupGame() {
       openQuests();
     };
 
-    // Setup achievements callback
+    // Setup achievements callback (Canvas version)
     gameUI.onOpenAchievements = () => {
-      openAchievements();
+      openAchievementsCanvas();
+    };
+    
+    // Setup leaderboard callback
+    gameUI.onOpenLeaderboard = () => {
+      openLeaderboardCanvas();
+    };
+    
+    // Setup daily spin callback
+    gameUI.onOpenDailySpin = () => {
+      openDailySpinCanvas();
+    };
+    
+    // Setup minigames callback
+    gameUI.onOpenMinigames = () => {
+      openMinigamesMenu();
+    };
+    
+    // Setup settings callback
+    gameUI.onOpenSettings = () => {
+      openSettings();
+    };
+    
+    // Setup skin shop callback
+    gameUI.onOpenSkinShop = () => {
+      openSkinShop();
+    };
+    
+    // Setup skin manager callback
+    gameUI.onOpenSkinManager = () => {
+      openSkinManager();
     };
 
     // Setup exploration callback
@@ -1967,6 +2062,50 @@ function closeInventory() {
   }
 
   // Update main UI - o canvas será limpo e redesenhado no próximo frame do render loop
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== STATUS SYSTEM =====
+
+function openStatus() {
+  if (!gameState) return;
+
+  // Close village if open
+  if (inVillage) {
+    closeVillage();
+  }
+
+  // Hide 3D viewer when opening status
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Status UI
+  statusUI = new StatusUI(canvas);
+
+  // Setup callback
+  statusUI.onClose = () => {
+    closeStatus();
+  };
+
+  inStatus = true;
+}
+
+function closeStatus() {
+  if (statusUI) {
+    statusUI.close();
+  }
+  statusUI = null;
+  inStatus = false;
+
+  // Show 3D viewer when returning to ranch
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  // Update main UI
   if (gameUI && gameState) {
     gameUI.updateGameState(gameState);
   }
@@ -2754,6 +2893,570 @@ function closeAchievements() {
   if (gameUI && gameState) {
     gameUI.updateGameState(gameState);
   }
+}
+
+// ===== ACHIEVEMENTS CANVAS SYSTEM (NEW) =====
+
+function openAchievementsCanvas() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Achievements UI Canvas
+  achievementsUICanvas = new AchievementsUICanvas(canvas);
+
+  achievementsUICanvas.onClose = () => {
+    closeAchievementsCanvas();
+  };
+
+  inAchievementsCanvas = true;
+}
+
+function closeAchievementsCanvas() {
+  if (achievementsUICanvas) {
+    achievementsUICanvas.close();
+  }
+  achievementsUICanvas = null;
+  inAchievementsCanvas = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== LEADERBOARD CANVAS SYSTEM (NEW) =====
+
+function openLeaderboardCanvas() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Leaderboard UI Canvas
+  leaderboardUICanvas = new LeaderboardUICanvas(canvas);
+
+  leaderboardUICanvas.onClose = () => {
+    closeLeaderboardCanvas();
+  };
+
+  inLeaderboardCanvas = true;
+}
+
+function closeLeaderboardCanvas() {
+  if (leaderboardUICanvas) {
+    leaderboardUICanvas.close();
+  }
+  leaderboardUICanvas = null;
+  inLeaderboardCanvas = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== DAILY SPIN CANVAS SYSTEM (NEW) =====
+
+function openDailySpinCanvas() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Daily Spin UI Canvas
+  dailySpinUICanvas = new DailySpinUICanvas(canvas);
+
+  dailySpinUICanvas.onClose = () => {
+    closeDailySpinCanvas();
+  };
+
+  dailySpinUICanvas.onRewardClaimed = (reward) => {
+    console.log('[SPIN] 🎁 Recompensa recebida:', reward.name);
+    
+    // Adicionar recompensa ao gameState
+    if (reward.type === 'coronas') {
+      gameState!.economy.coronas += Number(reward.value);
+    } else if (reward.type === 'xp' && gameState!.activeBeast) {
+      gameState!.activeBeast.xp = (gameState!.activeBeast.xp || 0) + Number(reward.value);
+    }
+    
+    // TODO: Adicionar itens ao inventário
+  };
+
+  inDailySpinCanvas = true;
+}
+
+function closeDailySpinCanvas() {
+  if (dailySpinUICanvas) {
+    dailySpinUICanvas.close();
+  }
+  dailySpinUICanvas = null;
+  inDailySpinCanvas = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== MINIGAMES SYSTEM =====
+
+function openMinigamesMenu() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Minigames Menu UI
+  minigamesMenuUI = new MinigamesMenuUI(canvas);
+
+  minigamesMenuUI.onClose = () => {
+    closeMinigamesMenu();
+  };
+
+  minigamesMenuUI.onSelectGame = (gameType: MinigameType) => {
+    console.log('[MINIGAMES] 🎮 Iniciando jogo:', gameType);
+    closeMinigamesMenu();
+    
+    if (gameType === 'memory') {
+      openMemoryGame();
+    }
+    // Outros jogos serão implementados aqui
+  };
+
+  inMinigamesMenu = true;
+}
+
+function closeMinigamesMenu() {
+  if (minigamesMenuUI) {
+    minigamesMenuUI.close();
+  }
+  minigamesMenuUI = null;
+  inMinigamesMenu = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+function openMemoryGame(difficulty: 'easy' | 'medium' | 'hard' = 'medium') {
+  if (!gameState) return;
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Memory Game UI
+  memoryGameUI = new MemoryGameUI(canvas, difficulty);
+
+  memoryGameUI.onClose = () => {
+    closeMemoryGame();
+  };
+
+  memoryGameUI.onComplete = (reward: any) => {
+    console.log('[MEMORY] 🎉 Jogo completo! Aplicando recompensas:', reward);
+    
+    // Aplicar recompensas ao gameState
+    if (gameState) {
+      gameState.economy.coronas += reward.coronas;
+      if (gameState.activeBeast) {
+        gameState.activeBeast.xp = (gameState.activeBeast.xp || 0) + reward.xp;
+      }
+      
+      // Aplicar virtudes
+      if (reward.virtueGain) {
+        // TODO: Implementar sistema de virtudes no gameState
+        console.log('[MEMORY] 🌿 Virtudes ganhas:', reward.virtueGain);
+      }
+      
+      // Processar conquistas
+      if (reward.gameData) {
+        const { timeElapsed, moves, difficulty } = reward.gameData;
+        
+        // Conquista: Primeira vitória
+        checkAndUnlockAchievement('memory_first_win');
+        
+        // Conquista: Velocidade (< 30s)
+        if (timeElapsed < 30) {
+          checkAndUnlockAchievement('memory_speed_master');
+        }
+        
+        // Conquista: Perfeito (< 20 movimentos no difícil)
+        if (difficulty === 'hard' && moves < 20) {
+          checkAndUnlockAchievement('memory_perfect');
+        }
+        
+        // Conquistas: Jogos jogados
+        checkAndUnlockAchievement('minigame_veteran');
+        checkAndUnlockAchievement('minigame_master');
+      }
+      
+      // Processar missões diárias
+      progressDailyQuest('daily_memory_game');
+      progressDailyQuest('daily_minigames');
+      progressDailyQuest('weekly_minigames_10');
+    }
+    
+    // Volta ao menu após 3 segundos
+    setTimeout(() => {
+      closeMemoryGame();
+      openMinigamesMenu();
+    }, 3000);
+  };
+
+  inMemoryGame = true;
+}
+
+function closeMemoryGame() {
+  if (memoryGameUI) {
+    memoryGameUI.close();
+  }
+  memoryGameUI = null;
+  inMemoryGame = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== SETTINGS SYSTEM =====
+
+function openSettings() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+  if (inMinigamesMenu) closeMinigamesMenu();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Settings UI
+  settingsUI = new SettingsUI(canvas);
+
+  settingsUI.onClose = () => {
+    closeSettings();
+  };
+
+  settingsUI.onApply = (settings: SettingsData) => {
+    console.log('[SETTINGS] ✅ Aplicando configurações:', settings);
+    
+    // Aplicar configurações ao jogo
+    // TODO: Implementar aplicação de qualidade gráfica, FPS, ciclo dia/noite
+    
+    // Salvar no localStorage
+    localStorage.setItem('guardian_grove_settings', JSON.stringify(settings));
+  };
+
+  inSettings = true;
+}
+
+function closeSettings() {
+  if (settingsUI) {
+    settingsUI.close();
+  }
+  settingsUI = null;
+  inSettings = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== SKIN SYSTEM =====
+
+function openCharacterSelect() {
+  console.log('[CHARACTER SELECT] 🎭 Abrindo seleção de personagem...');
+  
+  characterSelectUI = new CharacterSelectUI(canvas);
+  
+  characterSelectUI.onSelect = (skinId: string) => {
+    console.log(`[CHARACTER SELECT] ✅ Personagem selecionado: ${skinId}`);
+    closeCharacterSelect();
+    
+    // TODO: Sincronizar com servidor
+  };
+  
+  inCharacterSelect = true;
+}
+
+function closeCharacterSelect() {
+  if (characterSelectUI) {
+    characterSelectUI.dispose();
+  }
+  characterSelectUI = null;
+  inCharacterSelect = false;
+}
+
+function openSkinShop() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+  if (inMinigamesMenu) closeMinigamesMenu();
+  if (inSettings) closeSettings();
+  if (inSkinManager) closeSkinManager();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Skin Shop UI
+  skinShopUI = new SkinShopUI(canvas);
+
+  skinShopUI.onClose = () => {
+    closeSkinShop();
+  };
+
+  skinShopUI.onPurchase = async (skinId: string, price: number) => {
+    if (!gameState) return;
+    
+    console.log(`[SKIN SHOP] 🛒 Tentando comprar skin: ${skinId} por ${price} Coronas`);
+    
+    try {
+      // Comprar skin via API
+      const response = await gameApi.purchaseSkin(skinId);
+      
+      if (response.success) {
+        console.log(`[SKIN SHOP] ✅ Skin comprada com sucesso!`);
+        
+        // Atualizar coronas no gameState
+        if (response.data && typeof response.data.newBalance === 'number') {
+          gameState.resources.coronas = response.data.newBalance;
+        } else {
+          gameState.resources.coronas -= price;
+        }
+        
+        // Sincronizar com servidor
+        await gameApi.saveGameState(gameState);
+        
+        // Mostrar notificação
+        if (gameUI) {
+          gameUI.showNotification(`Skin adquirida com sucesso!`);
+        }
+      } else {
+        console.error('[SKIN SHOP] ❌ Erro ao comprar skin:', response.error);
+        if (gameUI) {
+          gameUI.showNotification(response.error || 'Erro ao comprar skin');
+        }
+      }
+    } catch (error) {
+      console.error('[SKIN SHOP] ❌ Erro ao comprar skin:', error);
+      if (gameUI) {
+        gameUI.showNotification('Erro ao comprar skin');
+      }
+    }
+  };
+
+  inSkinShop = true;
+}
+
+function closeSkinShop() {
+  if (skinShopUI) {
+    skinShopUI.dispose();
+  }
+  skinShopUI = null;
+  inSkinShop = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+function openSkinManager() {
+  if (!gameState) return;
+
+  // Close other UIs
+  if (inShop) closeShop();
+  if (inInventory) closeInventory();
+  if (inCraft) closeCraft();
+  if (inQuests) closeQuests();
+  if (inStatus) closeStatus();
+  if (inAchievementsCanvas) closeAchievementsCanvas();
+  if (inLeaderboardCanvas) closeLeaderboardCanvas();
+  if (inDailySpinCanvas) closeDailySpinCanvas();
+  if (inMinigamesMenu) closeMinigamesMenu();
+  if (inSettings) closeSettings();
+  if (inSkinShop) closeSkinShop();
+
+  // Hide 3D viewer
+  if (gameUI) {
+    gameUI.hide3DViewer();
+  }
+
+  // Create Skin Manager UI
+  skinManagerUI = new SkinManagerUI(canvas);
+
+  skinManagerUI.onClose = () => {
+    closeSkinManager();
+  };
+
+  skinManagerUI.onSkinChanged = async (skinId: string) => {
+    if (!gameState) return;
+    
+    console.log(`[SKIN MANAGER] 🔄 Trocando skin para: ${skinId}`);
+    
+    try {
+      // Alterar skin via API
+      const response = await gameApi.changeSkin(skinId);
+      
+      if (response.success) {
+        console.log(`[SKIN MANAGER] ✅ Skin alterada com sucesso!`);
+        
+        // Recarregar 3D scene com nova skin
+        if (gameUI) {
+          gameUI.reloadPlayerSkin(skinId);
+          gameUI.showNotification(`Skin alterada para ${getActiveSkin().name}!`);
+        }
+      } else {
+        console.error('[SKIN MANAGER] ❌ Erro ao trocar skin:', response.error);
+        if (gameUI) {
+          gameUI.showNotification(response.error || 'Erro ao trocar skin');
+        }
+      }
+    } catch (error) {
+      console.error('[SKIN MANAGER] ❌ Erro ao trocar skin:', error);
+      if (gameUI) {
+        gameUI.showNotification('Erro ao trocar skin');
+      }
+    }
+  };
+
+  inSkinManager = true;
+}
+
+function closeSkinManager() {
+  if (skinManagerUI) {
+    skinManagerUI.dispose();
+  }
+  skinManagerUI = null;
+  inSkinManager = false;
+
+  if (gameUI) {
+    gameUI.show3DViewer();
+  }
+
+  if (gameUI && gameState) {
+    gameUI.updateGameState(gameState);
+  }
+}
+
+// ===== ACHIEVEMENTS & QUESTS INTEGRATION =====
+
+/**
+ * Verifica e desbloqueia uma conquista
+ */
+function checkAndUnlockAchievement(achievementId: string) {
+  if (!gameState) return;
+  
+  // TODO: Implementar sistema completo de conquistas no gameState
+  // Por enquanto, apenas loga
+  console.log(`[ACHIEVEMENT] 🏆 Progresso em conquista: ${achievementId}`);
+  
+  // Futuramente: verificar se já foi desbloqueada, incrementar progresso, desbloquear se atingir meta
+}
+
+/**
+ * Progride uma missão diária/semanal
+ */
+function progressDailyQuest(questId: string) {
+  if (!gameState) return;
+  
+  // TODO: Implementar sistema completo de missões diárias no gameState
+  // Por enquanto, apenas loga
+  console.log(`[QUEST] 📚 Progresso em missão: ${questId}`);
+  
+  // Futuramente: incrementar progresso, completar se atingir meta, dar recompensas
 }
 
 // ===== EXPLORATION SYSTEM =====

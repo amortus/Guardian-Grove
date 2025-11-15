@@ -17,6 +17,8 @@ export class GuardianHubScene3D {
   private canvas: HTMLCanvasElement;
   private decorationsRoot: THREE.Group | null = null;
   private walkableGround: THREE.Mesh | null = null;
+  private invisibleWall: THREE.Mesh | null = null;
+  private readonly GROUND_RADIUS = 36;
   private beastModel: BeastModel | null = null;
   private beastGroup: THREE.Group | null = null;
   private activeRigAnimation: 'idle' | 'walk' | null = null;
@@ -25,7 +27,12 @@ export class GuardianHubScene3D {
   private needsFit = false;
   private isMoving = false;
   private currentTarget: THREE.Vector3 | null = null;
+  private lastPlayerPosition = new THREE.Vector3();
   private nextMoveTime = 0;
+  
+  // WASD Controls
+  private wasdKeys = { w: false, a: false, s: false, d: false };
+  private wasdMovement = new THREE.Vector3();
   private elapsedTime = 0;
 
   private interactionCallback?: (id: string) => void;
@@ -42,9 +49,42 @@ export class GuardianHubScene3D {
     model: BeastModel;
     group: THREE.Group;
     nametag: THREE.Sprite;
+    targetPosition: THREE.Vector3;
+    currentPosition: THREE.Vector3;
   }> = new Map();
   private lastPositionSaveTime = 0;
   private lastGhostFetchTime = 0;
+  private readonly POSITION_SAVE_INTERVAL = 0.5; // Save every 0.5 seconds for ultra-smooth updates
+  private readonly GHOST_FETCH_INTERVAL = 1.0; // Fetch every 1 second for real-time feel
+
+  // Exploration portal (Dungeon entrance)
+  private explorationPortal: THREE.Group | null = null;
+  private readonly PORTAL_POSITION = new THREE.Vector3(10, WORLD_Y_OFFSET, 0);
+  private readonly PORTAL_INTERACTION_DISTANCE = 3.5;
+  private isNearPortal = false;
+  private nearExploration = false;
+  private explorationPromptCallback?: () => void;
+  
+  // Posições dos buildings interativos
+  private readonly CRAFT_POSITION = new THREE.Vector3(-20, WORLD_Y_OFFSET, -5);
+  private readonly MARKET_POSITION = new THREE.Vector3(18, WORLD_Y_OFFSET, 5);
+  private readonly MISSION_POSITION = new THREE.Vector3(-5, WORLD_Y_OFFSET, 20);
+  private readonly BUILDING_INTERACTION_DISTANCE = 5.0;
+  
+  // Estados de proximidade
+  private isNearCraft = false;
+  private isNearMarket = false;
+  private isNearMission = false;
+  
+  // Modelos 3D dos buildings (para clique)
+  private craftModel: THREE.Group | null = null;
+  private marketModel: THREE.Group | null = null;
+  private missionModel: THREE.Group | null = null;
+  
+  // Callbacks para interações
+  private craftCallback?: () => void;
+  private marketCallback?: () => void;
+  private missionCallback?: () => void;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -72,9 +112,29 @@ export class GuardianHubScene3D {
 
       this.handlePointerClick(event.clientX, event.clientY, rect);
     });
+    
+    // WASD Controls
+    window.addEventListener('keydown', (event) => {
+      const key = event.key.toLowerCase();
+      if (key === 'w') this.wasdKeys.w = true;
+      if (key === 'a') this.wasdKeys.a = true;
+      if (key === 's') this.wasdKeys.s = true;
+      if (key === 'd') this.wasdKeys.d = true;
+    });
+    
+    window.addEventListener('keyup', (event) => {
+      const key = event.key.toLowerCase();
+      if (key === 'w') this.wasdKeys.w = false;
+      if (key === 'a') this.wasdKeys.a = false;
+      if (key === 's') this.wasdKeys.s = false;
+      if (key === 'd') this.wasdKeys.d = false;
+    });
+    
     this.setupEnvironment();
   }
 
+  private skyboxMesh: THREE.Mesh | null = null;
+  
   private setupEnvironment() {
     const scene = this.threeScene.getScene();
     const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
@@ -84,11 +144,64 @@ export class GuardianHubScene3D {
     camera.lookAt(0, WORLD_Y_OFFSET + 1.0, 0);
     camera.updateProjectionMatrix();
 
-    const skyColor = getSkyColor();
-    scene.background = new THREE.Color(skyColor.r, skyColor.g, skyColor.b);
-    scene.fog = new THREE.Fog(scene.background, 20, 46);
+    // Carrega skybox com movimento de nuvens
+    this.createAnimatedSkybox();
+    
+    // Fog suave
+    const fogColor = new THREE.Color(0.6, 0.8, 1.0);
+    scene.fog = new THREE.Fog(fogColor, 40, 80);
+    
+    // Luz ambiente forte para clarear tudo
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+    
+    // Luz direcional simulando sol
+    const sunLight = new THREE.DirectionalLight(0xffffee, 1.2);
+    sunLight.position.set(10, 20, 10);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 100;
+    sunLight.shadow.camera.left = -50;
+    sunLight.shadow.camera.right = 50;
+    sunLight.shadow.camera.top = 50;
+    sunLight.shadow.camera.bottom = -50;
+    scene.add(sunLight);
 
     this.rebuildDecorations();
+  }
+  
+  private createAnimatedSkybox() {
+    const scene = this.threeScene.getScene();
+    
+    // Carrega textura do skybox
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      '/assets/Skybox.jpg',
+      (texture) => {
+        // Cria geometria esférica grande
+        const skyGeo = new THREE.SphereGeometry(500, 60, 40);
+        
+        // Material com a textura
+        const skyMat = new THREE.MeshBasicMaterial({
+          map: texture,
+          side: THREE.BackSide, // Renderiza por dentro
+        });
+        
+        this.skyboxMesh = new THREE.Mesh(skyGeo, skyMat);
+        this.skyboxMesh.position.set(0, 0, 0);
+        scene.add(this.skyboxMesh);
+        
+        console.log('[HUB] 🌤️ Skybox carregado com sucesso!');
+      },
+      undefined,
+      (error) => {
+        console.error('[HUB] ❌ Erro ao carregar skybox:', error);
+        // Fallback: cor sólida
+        scene.background = new THREE.Color(0.6, 0.8, 1.0);
+      }
+    );
   }
 
   private rebuildDecorations() {
@@ -98,12 +211,15 @@ export class GuardianHubScene3D {
     this.decorationsRoot.position.y = WORLD_Y_OFFSET;
     this.threeScene.addObject(this.decorationsRoot);
 
+    // Chão verde + vila dos guardiões
     this.createProceduralGround();
-    this.createProceduralRiver();
-    this.createProceduralStructures();
-    this.createProceduralDecor();
+    this.createExplorationPortal(); // Portal da dungeon para exploração
+    this.createVillageAssets(); // Houses, Temple, Grass, etc.
     this.createLightingProps();
     this.createAmbientParticles();
+    
+    // Dungeon como ponto de entrada para exploração
+    this.createExplorationEntrance();
   }
 
   private clearDecorations() {
@@ -123,8 +239,7 @@ export class GuardianHubScene3D {
 
   private createProceduralGround() {
     // Único chão visível: disco verde tipo ilha/floresta
-    const radius = 36; // dobro do tamanho anterior para dar bastante área de caminhada
-    const geometry = new THREE.CircleGeometry(radius, 72);
+    const geometry = new THREE.CircleGeometry(this.GROUND_RADIUS, 72);
 
     const material = new THREE.MeshStandardMaterial({
       color: 0x2d5016, // Verde floresta escuro
@@ -138,6 +253,137 @@ export class GuardianHubScene3D {
     ground.receiveShadow = true;
     this.walkableGround = ground;
     this.addDecoration(ground);
+    
+    // Cria paredes invisíveis ao redor do círculo
+    this.createInvisibleWalls();
+  }
+  
+  private createInvisibleWalls() {
+    // Parede circular invisível ao redor do chão
+    const wallHeight = 10; // Altura suficiente para bloquear
+    const wallThickness = 0.5;
+    const segments = 64; // Mais segmentos = parede mais circular
+    
+    // Cria um cilindro oco (parede circular)
+    const outerRadius = this.GROUND_RADIUS - 1; // Um pouco menor que o chão para não aparecer fora
+    const innerRadius = outerRadius - wallThickness;
+    
+    // Cria geometria personalizada para parede circular
+    const geometry = new THREE.CylinderGeometry(
+      outerRadius,    // radiusTop
+      outerRadius,    // radiusBottom
+      wallHeight,     // height
+      segments,       // radialSegments
+      1,              // heightSegments
+      true            // openEnded (sem tampa)
+    );
+    
+    // Material invisível mas com colisão
+    const material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide
+    });
+    
+    const wall = new THREE.Mesh(geometry, material);
+    wall.position.y = WORLD_Y_OFFSET + wallHeight / 2; // Centraliza verticalmente
+    
+    // Importante: marca como objeto de colisão
+    wall.userData.isWall = true;
+    
+    this.invisibleWall = wall;
+    this.addDecoration(wall);
+    console.log('[HUB] 🧱 Paredes invisíveis criadas ao redor do chão (raio:', outerRadius, ')');
+  }
+
+  private async createExplorationPortal() {
+    // Carrega o asset 3D "Explorar.glb"
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+    const loader = new GLTFLoader();
+    
+    try {
+      const gltf = await loader.loadAsync('/assets/3d/Village/Explorar.glb');
+      this.explorationPortal = gltf.scene;
+      
+      // Posiciona o portal (ajustado para cima)
+      const portalPos = this.PORTAL_POSITION.clone();
+      portalPos.y += 1.5; // Sobe 1.5 unidades para não afundar
+      this.explorationPortal.position.copy(portalPos);
+      this.explorationPortal.scale.set(3.0, 3.0, 3.0); // 2x maior (era 1.5, agora 3.0)
+      
+      // Torna clicável
+      this.explorationPortal.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          // Não adiciona emissive para manter cor original
+        }
+      });
+      
+      this.threeScene.addObject(this.explorationPortal);
+      console.log('[HUB] 🏰 Portal de exploração (Explorar.glb) carregado com escala 3.0!');
+    } catch (error) {
+      console.error('[HUB] ❌ Erro ao carregar Explorar.glb:', error);
+      // Fallback: cria um portal simples procedural
+      this.createFallbackPortal();
+    }
+  }
+
+  private createFallbackPortal() {
+    // Portal simples caso o asset não carregue
+    const portalGroup = new THREE.Group();
+    
+    // Base da dungeon (pedra)
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 0.5, 3),
+      new THREE.MeshStandardMaterial({ color: 0x404040, roughness: 0.8 })
+    );
+    base.position.y = 0.25;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    portalGroup.add(base);
+    
+    // Arco/Portal
+    const leftPillar = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 3, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x303030, roughness: 0.7 })
+    );
+    leftPillar.position.set(-1, 2, 0);
+    leftPillar.castShadow = true;
+    portalGroup.add(leftPillar);
+    
+    const rightPillar = leftPillar.clone();
+    rightPillar.position.set(1, 2, 0);
+    portalGroup.add(rightPillar);
+    
+    const arch = new THREE.Mesh(
+      new THREE.BoxGeometry(2.5, 0.5, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x303030, roughness: 0.7 })
+    );
+    arch.position.set(0, 3.5, 0);
+    arch.castShadow = true;
+    portalGroup.add(arch);
+    
+    // Efeito de portal (plano brilhante)
+    const portalEffect = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.8, 3),
+      new THREE.MeshStandardMaterial({
+        color: 0x4488ff,
+        emissive: 0x4488ff,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+      })
+    );
+    portalEffect.position.set(0, 2, 0);
+    portalGroup.add(portalEffect);
+    
+    portalGroup.position.copy(this.PORTAL_POSITION);
+    this.explorationPortal = portalGroup;
+    this.threeScene.addObject(portalGroup);
+    
+    console.log('[HUB] 🏰 Portal de exploração (fallback) criado!');
   }
 
   private createProceduralRiver() {
@@ -277,6 +523,170 @@ export class GuardianHubScene3D {
     this.addDecoration(decorGroup);
   }
 
+  private async createVillageAssets() {
+    // Carrega GLTF Loader
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+    const loader = new GLTFLoader();
+    
+    try {
+      // Houses (3 casas espalhadas) - House1 ajustada (mais para trás e para baixo)
+      const housePositions = [
+        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 2.5, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Moveu de z=-10 para z=-15 (mais para trás) e desceu um pouco
+        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.8, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) },
+        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.8, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) },
+      ];
+      
+      for (const house of housePositions) {
+        const gltf = await loader.loadAsync(house.path);
+        const houseModel = gltf.scene;
+        houseModel.position.copy(house.position);
+        houseModel.scale.setScalar(house.scale);
+        houseModel.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        this.addDecoration(houseModel);
+        
+        // Adiciona lanterna ao lado da casa (ajustada para o chão)
+        await this.addLantern(loader, house.position.clone().add(house.lanternOffset));
+      }
+      
+      // Temple (templo central) - 4X MAIOR (aumentou mais um pouco), altura ajustada (um pouco mais baixo)
+      const templeGltf = await loader.loadAsync('/assets/3d/Village/Temple.glb');
+      const templeModel = templeGltf.scene;
+      templeModel.position.set(0, WORLD_Y_OFFSET + 3.2, -18);
+      templeModel.scale.setScalar(5.5); // 4x maior (aumentou de 4.5 para 5.5)
+      templeModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.addDecoration(templeModel);
+      
+      // Lanternas ao redor do templo (subidas um pouco)
+      await this.addLantern(loader, new THREE.Vector3(-5, WORLD_Y_OFFSET + 0.6, -18));
+      await this.addLantern(loader, new THREE.Vector3(5, WORLD_Y_OFFSET + 0.6, -18));
+      
+      // Craft (oficina de craft) - 4X MAIOR, sobe mais um pouco
+      const craftGltf = await loader.loadAsync('/assets/3d/Village/Craft.glb');
+      this.craftModel = craftGltf.scene;
+      this.craftModel.position.set(-20, WORLD_Y_OFFSET + 3.8, -5); // Subiu de 3.2 para 3.8
+      this.craftModel.scale.setScalar(5.2); // 4x maior
+      this.craftModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.craftModel.userData.interaction = 'craft'; // Marca para interação
+      this.addDecoration(this.craftModel);
+      await this.addLantern(loader, new THREE.Vector3(-22, WORLD_Y_OFFSET + 0.6, -5));
+      
+      // Market (loja) - Lanterna subida
+      const marketGltf = await loader.loadAsync('/assets/3d/Village/Market.glb');
+      this.marketModel = marketGltf.scene;
+      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.5, 5);
+      this.marketModel.scale.setScalar(1.3);
+      this.marketModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.marketModel.userData.interaction = 'market'; // Marca para interação
+      this.addDecoration(this.marketModel);
+      await this.addLantern(loader, new THREE.Vector3(20, WORLD_Y_OFFSET + 0.6, 5));
+      
+      // Mission Board (quadro de missões) - Aumenta tamanho e desce um pouquinho
+      const missionGltf = await loader.loadAsync('/assets/3d/Village/Mission.glb');
+      this.missionModel = missionGltf.scene;
+      this.missionModel.position.set(-5, WORLD_Y_OFFSET + 1.3, 20); // Desceu de 1.5 para 1.3
+      this.missionModel.scale.setScalar(2.0); // Aumentou de 1.3 para 2.0
+      this.missionModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.missionModel.userData.interaction = 'missions'; // Marca para interação
+      this.addDecoration(this.missionModel);
+      await this.addLantern(loader, new THREE.Vector3(-5, WORLD_Y_OFFSET + 0.6, 22));
+      
+      // Grass (grama espalhada - 25 tufos)
+      for (let i = 0; i < 25; i++) {
+        const grassGltf = await loader.loadAsync('/assets/3d/Ranch/Grass/Grass1.glb');
+        const grassModel = grassGltf.scene.clone();
+        
+        // Posição aleatória dentro do círculo
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * (this.GROUND_RADIUS - 5);
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        
+        grassModel.position.set(x, WORLD_Y_OFFSET + 0.3, z); // Subiu um pouquinho (de 0 para +0.3)
+        grassModel.scale.setScalar(0.8 + Math.random() * 0.4);
+        grassModel.rotation.y = Math.random() * Math.PI * 2;
+        
+        this.addDecoration(grassModel);
+      }
+      
+      // Trees (algumas árvores nas bordas) - AJUSTADO para cima
+      const treePositions = [
+        { x: -20, z: 5 },
+        { x: 20, z: 8 },
+        { x: 8, z: 20 },
+        { x: -10, z: -20 },
+        { x: 15, z: -15 },
+      ];
+      
+      for (const pos of treePositions) {
+        const treeGltf = await loader.loadAsync('/assets/3d/Ranch/Tree/Tree1.glb');
+        const treeModel = treeGltf.scene;
+        treeModel.position.set(pos.x, WORLD_Y_OFFSET + 1.7, pos.z); // Desceu um pouquinho de 2.0 para 1.7
+        treeModel.scale.setScalar(3.0); // 2x maior (era 1.5, agora 3.0)
+        treeModel.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        this.addDecoration(treeModel);
+      }
+      
+      console.log('[HUB] 🏘️ Vila dos guardiões criada com sucesso!');
+    } catch (error) {
+      console.error('[HUB] ❌ Erro ao carregar assets da vila:', error);
+    }
+  }
+  
+  private async addLantern(loader: any, position: THREE.Vector3) {
+    try {
+      const lanternGltf = await loader.loadAsync('/assets/3d/Ranch/Lantern/Lantern1.glb');
+      const lanternModel = lanternGltf.scene.clone();
+      lanternModel.position.copy(position);
+      lanternModel.scale.setScalar(0.8);
+      
+      // Adiciona luz pontual na lanterna
+      const light = new THREE.PointLight(0xffaa55, 0.5, 8);
+      light.position.set(0, 1, 0);
+      lanternModel.add(light);
+      
+      lanternModel.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      
+      this.addDecoration(lanternModel);
+    } catch (error) {
+      console.error('[HUB] ❌ Erro ao carregar lanterna:', error);
+    }
+  }
+  
   private createLightingProps() {
     if (!this.decorationsRoot) {
       return;
@@ -425,6 +835,50 @@ export class GuardianHubScene3D {
     });
   }
 
+  private async createExplorationEntrance() {
+    console.log('[HubScene] 🏰 Loading Dungeon as exploration entrance...');
+    
+    try {
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader();
+      
+      const gltf = await new Promise<any>((resolve, reject) => {
+        loader.load(
+          '/assets/3d/decorations/Dungeon/Dungeon.glb',
+          resolve,
+          undefined,
+          reject
+        );
+      });
+      
+      this.explorationEntrance = gltf.scene;
+      
+      // Posicionar a dungeon
+      this.explorationEntrance.position.copy(this.explorationEntrancePosition);
+      this.explorationEntrance.scale.set(1.5, 1.5, 1.5); // Aumentar um pouco o tamanho
+      
+      // Adicionar glow effect
+      this.explorationEntrance.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material = (child.material as THREE.Material).clone();
+          (child.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(0x4488ff);
+          (child.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.3;
+        }
+      });
+      
+      this.threeScene.addObject(this.explorationEntrance);
+      
+      // Adicionar luz pontual
+      const dungeonLight = new THREE.PointLight(0x4488ff, 2, 10);
+      dungeonLight.position.copy(this.explorationEntrancePosition);
+      dungeonLight.position.y += 3;
+      this.threeScene.addObject(dungeonLight);
+      
+      console.log('[HubScene] ✅ Dungeon entrance loaded!');
+    } catch (error) {
+      console.error('[HubScene] ❌ Failed to load dungeon:', error);
+    }
+  }
 
   public setBeast(beastLine: string) {
     if (this.beastGroup) {
@@ -450,6 +904,52 @@ export class GuardianHubScene3D {
     } else {
       this.idleAnimation = this.beastModel.playIdleAnimation();
     }
+  }
+
+  /**
+   * Troca a skin do jogador em tempo real
+   */
+  public changePlayerSkin(skinId: string) {
+    console.log(`[GuardianHubScene3D] 🎭 Trocando skin do jogador para: ${skinId}`);
+    
+    // Salvar posição atual
+    const currentPosition = this.beastGroup?.position.clone();
+    const currentTarget = this.currentTarget;
+    
+    // Recarregar modelo
+    if (this.beastGroup) {
+      this.threeScene.removeObject(this.beastGroup);
+      this.beastModel?.dispose();
+    }
+    
+    // Carregar novo modelo
+    this.beastModel = new BeastModel(skinId);
+    this.beastGroup = this.beastModel.getGroup();
+    this.needsFit = false;
+    
+    // Restaurar posição
+    if (currentPosition) {
+      this.beastGroup.position.copy(currentPosition);
+    } else {
+      this.beastGroup.position.set(0, WORLD_Y_OFFSET - 1.1, 0);
+    }
+    
+    this.threeScene.addObject(this.beastGroup);
+    
+    // Restaurar target se estava se movendo
+    if (currentTarget) {
+      this.currentTarget = currentTarget;
+      this.isMoving = true;
+    }
+    
+    // Iniciar animação
+    if (this.beastModel.hasRiggedAnimations()) {
+      this.playRigAnimation(this.isMoving ? 'walk' : 'idle');
+    } else {
+      this.idleAnimation = this.beastModel.playIdleAnimation();
+    }
+    
+    console.log(`[GuardianHubScene3D] ✅ Skin alterada com sucesso!`);
   }
 
   public setInteractionCallback(callback: (id: string) => void) {
@@ -490,6 +990,47 @@ export class GuardianHubScene3D {
     });
 
     this.preparePointer(clientX, clientY, rect);
+    
+    // Verifica se clicou no portal
+    if (this.explorationPortal) {
+      const portalHits = this.raycaster.intersectObject(this.explorationPortal, true);
+      if (portalHits.length > 0) {
+        console.log('[HUB] 🎮 Clicou no portal! Iniciando exploração...');
+        this.explorationPromptCallback?.();
+        return 'portal';
+      }
+    }
+    
+    // Verifica se clicou no Craft
+    if (this.craftModel) {
+      const craftHits = this.raycaster.intersectObject(this.craftModel, true);
+      if (craftHits.length > 0) {
+        console.log('[HUB] 🔨 Clicou no Craft! Abrindo menu...');
+        this.craftCallback?.();
+        return 'craft';
+      }
+    }
+    
+    // Verifica se clicou no Market
+    if (this.marketModel) {
+      const marketHits = this.raycaster.intersectObject(this.marketModel, true);
+      if (marketHits.length > 0) {
+        console.log('[HUB] 🛒 Clicou no Market! Abrindo menu...');
+        this.marketCallback?.();
+        return 'market';
+      }
+    }
+    
+    // Verifica se clicou no Mission Board
+    if (this.missionModel) {
+      const missionHits = this.raycaster.intersectObject(this.missionModel, true);
+      if (missionHits.length > 0) {
+        console.log('[HUB] 📜 Clicou no Mission Board! Abrindo menu...');
+        this.missionCallback?.();
+        return 'missions';
+      }
+    }
+    
     const entry = this.pickInteractable();
     if (entry) {
       // No pendingInteraction, manualControl, or interactionCallback here
@@ -511,6 +1052,7 @@ export class GuardianHubScene3D {
     }
 
     this.isMoving = true;
+    console.log('[GuardianHubScene3D] 🚶 Setting isMoving = true, target:', this.currentTarget);
     this.playRigAnimation('walk');
     this.updateInteractableHighlight(null);
     this.hoverCallback?.('walkable');
@@ -569,6 +1111,13 @@ export class GuardianHubScene3D {
     this.updateAmbientParticles();
     this.updateCameraFollow();
     this.updateGhostSystem(delta);
+    this.checkPortalProximity();
+    this.checkBuildingProximity(); // Verifica proximidade com Craft, Market, Missions
+    
+    // Anima skybox (rotação lenta para simular movimento de nuvens)
+    if (this.skyboxMesh) {
+      this.skyboxMesh.rotation.y += delta * 0.005; // Rotação bem lenta
+    }
 
     const scene = this.threeScene.getScene();
     this.threeScene.updateDayNightLighting();
@@ -584,52 +1133,137 @@ export class GuardianHubScene3D {
     }
 
     this.nextMoveTime -= delta;
-
-    if (!this.isMoving) {
-      // No pendingInteraction, manualControl, or interactionCallback here
+    
+    // WASD Movement
+    const hasWASDInput = this.wasdKeys.w || this.wasdKeys.a || this.wasdKeys.s || this.wasdKeys.d;
+    
+    if (hasWASDInput) {
+      // WASD cancela o movimento de clique
       this.currentTarget = null;
-      this.playRigAnimation('idle');
-    } else if (!this.isMoving && this.nextMoveTime <= 0) {
-      const nextTarget = this.chooseNextTarget(this.beastGroup.position);
-      if (nextTarget) {
-        this.currentTarget = nextTarget;
+      
+      const speed = 5.0; // Velocidade WASD (2x mais rápido)
+      const camera = this.threeScene.getCamera() as THREE.PerspectiveCamera;
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+      forward.y = 0;
+      forward.normalize();
+      
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      right.y = 0;
+      right.normalize();
+      
+      this.wasdMovement.set(0, 0, 0);
+      
+      if (this.wasdKeys.w) this.wasdMovement.add(forward);
+      if (this.wasdKeys.s) this.wasdMovement.sub(forward);
+      if (this.wasdKeys.d) this.wasdMovement.add(right);
+      if (this.wasdKeys.a) this.wasdMovement.sub(right);
+      
+      if (this.wasdMovement.length() > 0) {
+        this.wasdMovement.normalize();
+        
+        // Calcula nova posição
+        const newPosition = this.beastGroup.position.clone();
+        newPosition.addScaledVector(this.wasdMovement, speed * delta);
+        
+        // Verifica colisão com paredes
+        if (this.isPositionInsideBounds(newPosition)) {
+          this.beastGroup.position.copy(newPosition);
+          this.beastGroup.lookAt(
+            this.beastGroup.position.x + this.wasdMovement.x,
+            this.beastGroup.position.y,
+            this.beastGroup.position.z + this.wasdMovement.z
+          );
+        } else {
+          console.log('[HUB] 🧱 Bloqueado pela parede invisível!');
+        }
+        
+        if (this.activeRigAnimation !== 'walk') {
+          this.playRigAnimation('walk');
+        }
         this.isMoving = true;
-        this.playRigAnimation('walk');
       } else {
-        this.nextMoveTime = 2.5 + Math.random() * 1.5;
+        // WASD foi solto, mas ainda está no estado hasWASDInput (transição)
+        if (this.isMoving) {
+          this.isMoving = false;
+          this.playRigAnimation('idle');
+        }
       }
-    }
-
-    if (this.isMoving && this.currentTarget) {
-      const speed = 2.0;
-      const current = this.beastGroup.position;
-
-      // Movimentação apenas no plano XZ (altura controlada por fitBeastToScene)
-      const direction = new THREE.Vector3(
-        this.currentTarget.x - current.x,
-        0,
-        this.currentTarget.z - current.z,
-      );
-      const distance = direction.length();
-
-      if (distance < 0.1) {
+    } else {
+      // Se estava usando WASD e agora não está mais, força idle
+      if (this.isMoving && !this.currentTarget) {
         this.isMoving = false;
-        this.currentTarget = null;
         this.playRigAnimation('idle');
-
-        // No pendingInteraction, manualControl, or interactionCallback here
-        this.nextMoveTime = 2.0 + Math.random() * 1.2;
+      }
+      // Só força idle se realmente não estiver se movendo E não tiver target
+      if (!this.isMoving && !this.currentTarget) {
+        if (this.activeRigAnimation !== 'idle') {
+          this.playRigAnimation('idle');
+        }
       }
 
-      direction.normalize();
-      current.addScaledVector(direction, speed * delta);
+      if (this.isMoving && this.currentTarget) {
+        const speed = 4.0; // Velocidade de clique (2x mais rápido)
+        const current = this.beastGroup.position;
 
-      if (this.currentTarget) {
-        this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
+        // Movimentação apenas no plano XZ (altura controlada por fitBeastToScene)
+        const direction = new THREE.Vector3(
+          this.currentTarget.x - current.x,
+          0,
+          this.currentTarget.z - current.z,
+        );
+        const distance = direction.length();
+
+        if (distance < 0.1) {
+          console.log('[GuardianHubScene3D] 🛑 Reached target, stopping');
+          this.isMoving = false;
+          this.currentTarget = null;
+          this.playRigAnimation('idle');
+
+          // No pendingInteraction, manualControl, or interactionCallback here
+          this.nextMoveTime = 2.0 + Math.random() * 1.2;
+        } else {
+          // Ensure walk animation is playing while moving
+          if (this.activeRigAnimation !== 'walk') {
+            console.log('[GuardianHubScene3D] 🏃 Forcing walk animation (was:', this.activeRigAnimation, ')');
+            this.playRigAnimation('walk');
+          }
+        }
+
+        direction.normalize();
+        
+        // Calcula nova posição
+        const newPosition = current.clone();
+        newPosition.addScaledVector(direction, speed * delta);
+        
+        // Verifica colisão com paredes
+        if (this.isPositionInsideBounds(newPosition)) {
+          current.copy(newPosition);
+        } else {
+          console.log('[HUB] 🧱 Bloqueado pela parede invisível! Parando movimento.');
+          this.isMoving = false;
+          this.currentTarget = null;
+          this.playRigAnimation('idle');
+        }
+
+        if (this.currentTarget) {
+          this.beastGroup.lookAt(this.currentTarget.x, current.y, this.currentTarget.z);
+        }
       }
     }
   }
 
+  private isPositionInsideBounds(position: THREE.Vector3): boolean {
+    // Verifica se a posição está dentro do círculo do chão
+    const distanceFromCenter = Math.sqrt(
+      position.x * position.x + 
+      position.z * position.z
+    );
+    
+    // Deixa uma margem de 2 unidades para segurança
+    const maxDistance = this.GROUND_RADIUS - 2;
+    return distanceFromCenter < maxDistance;
+  }
+  
   private updateCameraFollow() {
     if (!this.beastGroup) {
       return;
@@ -731,15 +1365,18 @@ export class GuardianHubScene3D {
     if (this.activeRigAnimation === name) {
       return;
     }
+    console.log('[GuardianHubScene3D] 🎬 Changing animation:', this.activeRigAnimation, '→', name);
     const played = this.beastModel.playAnimation(name, {
       loop: THREE.LoopRepeat,
       clampWhenFinished: false,
-      fadeIn: 0.18,
-      fadeOut: 0.18,
-      forceRestart: true,
+      fadeIn: 0.08,  // Mais rápido = menos travamento
+      fadeOut: 0.08, // Mais rápido = menos travamento
+      forceRestart: false, // Não força restart = transição mais suave
     });
     if (played) {
       this.activeRigAnimation = name;
+    } else {
+      console.error('[GuardianHubScene3D] ❌ Failed to play animation:', name);
     }
   }
 
@@ -762,25 +1399,158 @@ export class GuardianHubScene3D {
     return true;
   }
 
+  // ========== EXPLORATION PORTAL SYSTEM ==========
+
+  public setExplorationCallback(callback: () => void) {
+    this.explorationPromptCallback = callback;
+  }
+
+  private checkPortalProximity() {
+    if (!this.beastGroup || !this.explorationPortal) {
+      return;
+    }
+
+    const playerPos = this.beastGroup.position;
+    const portalPos = this.explorationPortal.position;
+    const distance = playerPos.distanceTo(portalPos);
+
+    const wasNear = this.isNearPortal;
+    this.isNearPortal = distance < this.PORTAL_INTERACTION_DISTANCE;
+
+    // Transição: entrou na área
+    if (this.isNearPortal && !wasNear) {
+      console.log('[HUB] 🚪 Perto do portal de exploração! Pressione [E]');
+      this.showExplorationPrompt(true);
+    }
+    // Transição: saiu da área
+    else if (!this.isNearPortal && wasNear) {
+      console.log('[HUB] 🚶 Saiu da área do portal');
+      this.showExplorationPrompt(false);
+    }
+  }
+
+  private showExplorationPrompt(show: boolean) {
+    // Dispara evento para mostrar/esconder UI "[E] Explorar"
+    const event = new CustomEvent('explorationPrompt', {
+      detail: { show, position: this.PORTAL_POSITION }
+    });
+    window.dispatchEvent(event);
+  }
+
+  public tryEnterExploration(): boolean {
+    if (this.isNearPortal) {
+      console.log('[HUB] 🎮 Entrando na exploração!');
+      this.explorationPromptCallback?.();
+      return true;
+    }
+    return false;
+  }
+  
+  // ========== BUILDING INTERACTIONS ==========
+  
+  private checkBuildingProximity() {
+    if (!this.beastGroup) return;
+    
+    const playerPos = this.beastGroup.position;
+    
+    // Verifica Craft
+    const craftDist = playerPos.distanceTo(this.CRAFT_POSITION);
+    const wasCraft = this.isNearCraft;
+    this.isNearCraft = craftDist < this.BUILDING_INTERACTION_DISTANCE;
+    
+    if (this.isNearCraft && !wasCraft) {
+      console.log('[HUB] 🔨 Perto do Craft! Pressione [E] para craftar');
+      this.dispatchBuildingPrompt('craft', true);
+    } else if (!this.isNearCraft && wasCraft) {
+      this.dispatchBuildingPrompt('craft', false);
+    }
+    
+    // Verifica Market
+    const marketDist = playerPos.distanceTo(this.MARKET_POSITION);
+    const wasMarket = this.isNearMarket;
+    this.isNearMarket = marketDist < this.BUILDING_INTERACTION_DISTANCE;
+    
+    if (this.isNearMarket && !wasMarket) {
+      console.log('[HUB] 🛒 Perto do Market! Pressione [E] para comprar');
+      this.dispatchBuildingPrompt('market', true);
+    } else if (!this.isNearMarket && wasMarket) {
+      this.dispatchBuildingPrompt('market', false);
+    }
+    
+    // Verifica Missions
+    const missionDist = playerPos.distanceTo(this.MISSION_POSITION);
+    const wasMission = this.isNearMission;
+    this.isNearMission = missionDist < this.BUILDING_INTERACTION_DISTANCE;
+    
+    if (this.isNearMission && !wasMission) {
+      console.log('[HUB] 📜 Perto do Mission Board! Pressione [E] para ver missões');
+      this.dispatchBuildingPrompt('missions', true);
+    } else if (!this.isNearMission && wasMission) {
+      this.dispatchBuildingPrompt('missions', false);
+    }
+  }
+  
+  private dispatchBuildingPrompt(building: 'craft' | 'market' | 'missions', show: boolean) {
+    const event = new CustomEvent('buildingPrompt', {
+      detail: { building, show }
+    });
+    window.dispatchEvent(event);
+  }
+  
+  public setCraftCallback(callback: () => void) {
+    this.craftCallback = callback;
+  }
+  
+  public setMarketCallback(callback: () => void) {
+    this.marketCallback = callback;
+  }
+  
+  public setMissionCallback(callback: () => void) {
+    this.missionCallback = callback;
+  }
+  
+  public tryInteractWithBuilding(): boolean {
+    if (this.isNearCraft) {
+      console.log('[HUB] 🔨 Abrindo Craft!');
+      this.craftCallback?.();
+      return true;
+    }
+    
+    if (this.isNearMarket) {
+      console.log('[HUB] 🛒 Abrindo Market!');
+      this.marketCallback?.();
+      return true;
+    }
+    
+    if (this.isNearMission) {
+      console.log('[HUB] 📜 Abrindo Missions!');
+      this.missionCallback?.();
+      return true;
+    }
+    
+    return false;
+  }
+
   // ========== GHOST SYSTEM ==========
 
   private async updateGhostSystem(delta: number) {
     this.elapsedTime += delta;
 
-    // Save our position every 3 seconds
-    if (this.beastGroup && this.elapsedTime - this.lastPositionSaveTime > 3) {
+    // Save our position every 1 second for smooth updates
+    if (this.beastGroup && this.elapsedTime - this.lastPositionSaveTime > this.POSITION_SAVE_INTERVAL) {
       this.lastPositionSaveTime = this.elapsedTime;
       await this.saveOurPosition();
     }
 
-    // Fetch other players every 10 seconds
-    if (this.elapsedTime - this.lastGhostFetchTime > 10) {
+    // Fetch other players every 2 seconds for near real-time
+    if (this.elapsedTime - this.lastGhostFetchTime > this.GHOST_FETCH_INTERVAL) {
       this.lastGhostFetchTime = this.elapsedTime;
       await this.fetchAndRenderGhosts();
     }
 
-    // Update nametag positions
+    // Update nametag positions and ghost animations
     this.updateNametags();
+    this.updateGhostAnimations(delta);
   }
 
   private async saveOurPosition() {
@@ -837,9 +1607,9 @@ export class GuardianHubScene3D {
     const existing = this.ghostPlayers.get(visitor.playerName);
 
     if (existing) {
-      console.log('[Ghost] 🔄 Updating ghost position:', visitor.playerName);
-      // Update position
-      existing.group.position.set(
+      console.log('[Ghost] 🔄 Updating ghost target position:', visitor.playerName);
+      // Update target position for smooth interpolation
+      existing.targetPosition.set(
         visitor.position.x,
         visitor.position.y,
         visitor.position.z
@@ -885,10 +1655,16 @@ export class GuardianHubScene3D {
         });
       }
 
+      // Initialize position tracking
+      const currentPos = new THREE.Vector3(visitor.position.x, adjustedY, visitor.position.z);
+      const targetPos = new THREE.Vector3(visitor.position.x, adjustedY, visitor.position.z);
+
       this.ghostPlayers.set(visitor.playerName, {
         model: ghostModel,
         group: ghostGroup,
-        nametag
+        nametag,
+        currentPosition: currentPos,
+        targetPosition: targetPos
       });
       
       console.log('[Ghost] ✅ Ghost created successfully:', visitor.playerName);
@@ -925,7 +1701,7 @@ export class GuardianHubScene3D {
     const material = new THREE.SpriteMaterial({ map: texture });
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(2, 0.5, 1);
-    sprite.position.y = 2; // Above the beast
+    sprite.position.y = 3.5; // Bem acima da cabeça
 
     return sprite;
   }
@@ -937,6 +1713,72 @@ export class GuardianHubScene3D {
       // Make nametag always face camera
       ghost.nametag.lookAt(camera.position);
     }
+  }
+
+  private updateGhostAnimations(delta: number) {
+    for (const [, ghost] of this.ghostPlayers) {
+      // Update ghost model animations
+      ghost.model.update(delta);
+
+      // Smooth interpolation to target position
+      const lerpSpeed = 5.0 * delta; // Adjust for smoothness
+      ghost.currentPosition.lerp(ghost.targetPosition, lerpSpeed);
+      
+      // Apply interpolated position
+      ghost.group.position.copy(ghost.currentPosition);
+
+      // Check if ghost is moving
+      const distanceToTarget = ghost.currentPosition.distanceTo(ghost.targetPosition);
+      const isMoving = distanceToTarget > 0.05; // Threshold for "stopped"
+
+      // Switch between walk and idle animation (simplified - just play, let fade handle it)
+      if (isMoving && ghost.model.hasRiggedAnimations()) {
+        ghost.model.playAnimation('walk', {
+          loop: THREE.LoopRepeat,
+          clampWhenFinished: false,
+          fadeIn: 0.3,
+          fadeOut: 0.3,
+        });
+        // Make ghost look towards movement direction
+        ghost.group.lookAt(ghost.targetPosition.x, ghost.currentPosition.y, ghost.targetPosition.z);
+      } else if (!isMoving && ghost.model.hasRiggedAnimations()) {
+        ghost.model.playAnimation('idle', {
+          loop: THREE.LoopRepeat,
+          clampWhenFinished: false,
+          fadeIn: 0.3,
+          fadeOut: 0.3,
+        });
+      }
+    }
+  }
+
+  // ========== EXPLORATION SYSTEM ==========
+
+  private checkExplorationProximity() {
+    if (!this.beastGroup || !this.explorationEntrance) return;
+
+    const distance = this.beastGroup.position.distanceTo(this.explorationEntrancePosition);
+    const wasNear = this.nearExploration;
+    this.nearExploration = distance < this.explorationInteractionRadius;
+
+    // Trigger callback quando entrar/sair da área
+    if (this.nearExploration !== wasNear && this.explorationPromptCallback) {
+      this.explorationPromptCallback();
+    }
+  }
+
+  public isNearExplorationEntrance(): boolean {
+    return this.nearExploration;
+  }
+
+  public onExplorationPrompt(callback: () => void) {
+    this.explorationPromptCallback = callback;
+  }
+
+  public startExploration() {
+    console.log('[HubScene] 🚪 Starting exploration...');
+    // Este método será chamado pela UI quando o jogador pressionar E
+    // Por enquanto só loga, depois vamos implementar a troca de cena
   }
 }
 

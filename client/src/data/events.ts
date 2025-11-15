@@ -1,74 +1,131 @@
 /**
- * Eventos Temporários
- * Quests e eventos especiais por tempo limitado
+ * Sistema de Eventos Temporários - Guardian Grove
  */
 
-import type { Quest } from '../systems/quests';
-
-export interface TimeEvent {
+export interface GameEvent {
   id: string;
   name: string;
   description: string;
-  startWeek: number; // Semana de início
-  endWeek: number; // Semana de término
-  quest?: Quest; // Quest especial do evento
-  shopItems?: string[]; // IDs de itens especiais
-  rewards?: {
-    coronas?: number;
-    items?: Array<{ itemId: string; quantity: number }>;
+  icon: string;
+  type: 'xp_boost' | 'currency_boost' | 'special_rewards' | 'limited_time';
+  startDate: Date;
+  endDate: Date;
+  bonuses: {
+    xpMultiplier?: number;
+    coronasMultiplier?: number;
+    specialRewards?: Array<{ id: string; name: string; icon: string }>;
   };
+  isActive: boolean;
 }
 
-/**
- * Eventos temporários que ocorrem em semanas específicas
- */
-export const TIME_EVENTS: TimeEvent[] = [
+export const GAME_EVENTS: GameEvent[] = [
   {
-    id: 'lunar_festival',
-    name: '🌙 Festival Lunar',
-    description: 'A lua brilha forte esta semana! Bestas ganham bônus de treino.',
-    startWeek: 10,
-    endWeek: 12,
-    rewards: { coronas: 1000 },
+    id: 'weekend_xp_boost',
+    name: '🌟 Fim de Semana de XP Duplo!',
+    description: 'Ganhe 2x XP em todas as atividades durante o fim de semana!',
+    icon: '⭐',
+    type: 'xp_boost',
+    startDate: new Date('2024-11-15T00:00:00'),
+    endDate: new Date('2024-11-17T23:59:59'),
+    bonuses: { xpMultiplier: 2 },
+    isActive: false,
   },
   {
-    id: 'harvest_season',
-    name: '🌾 Temporada de Colheita',
-    description: 'Alimentos custam metade do preço na loja!',
-    startWeek: 25,
-    endWeek: 27,
-    shopItems: ['basic_food', 'premium_food', 'vital_fruit', 'feast'],
+    id: 'happy_hour',
+    name: '💰 Hora Feliz: Coronas +50%',
+    description: 'Ganhe 50% mais Coronas em todas as missões!',
+    icon: '💎',
+    type: 'currency_boost',
+    startDate: new Date('2024-11-14T18:00:00'),
+    endDate: new Date('2024-11-14T20:00:00'),
+    bonuses: { coronasMultiplier: 1.5 },
+    isActive: false,
   },
   {
-    id: 'crystal_rain',
-    name: '💎 Chuva de Cristais',
-    description: 'Cristais místicos caem do céu! Chance de drop aumentada.',
-    startWeek: 40,
-    endWeek: 42,
+    id: 'eco_week',
+    name: '🌿 Semana da Sustentabilidade',
+    description: 'Complete missões ecológicas para ganhar recompensas exclusivas!',
+    icon: '♻️',
+    type: 'special_rewards',
+    startDate: new Date('2024-11-13T00:00:00'),
+    endDate: new Date('2024-11-20T23:59:59'),
+    bonuses: {
+      specialRewards: [
+        { id: 'eco_badge', name: 'Medalha Eco', icon: '🌱' },
+        { id: 'green_cape', name: 'Capa Verde', icon: '🦸' },
+      ],
+    },
+    isActive: false,
   },
   {
-    id: 'dark_tournament',
-    name: '⚔️ Torneio das Sombras',
-    description: 'Torneio especial apenas para bestas de afinidade sombria!',
-    startWeek: 50,
-    endWeek: 52,
-    rewards: { coronas: 5000, items: [{ itemId: 'obscure_relic', quantity: 1 }] },
+    id: 'game_jam_launch',
+    name: '🎉 Lançamento Guardian Grove!',
+    description: 'Evento de lançamento! Todos os jogadores ganham bônus de boas-vindas!',
+    icon: '🎊',
+    type: 'special_rewards',
+    startDate: new Date('2024-11-14T00:00:00'),
+    endDate: new Date('2024-11-21T23:59:59'),
+    bonuses: {
+      xpMultiplier: 1.5,
+      coronasMultiplier: 1.5,
+      specialRewards: [
+        { id: 'founder_badge', name: 'Medalha de Fundador', icon: '👑' },
+      ],
+    },
+    isActive: false,
   },
 ];
 
-/**
- * Retorna evento ativo para a semana atual
- */
-export function getActiveEvent(currentWeek: number): TimeEvent | null {
-  return TIME_EVENTS.find(e => currentWeek >= e.startWeek && currentWeek <= e.endWeek) || null;
+export function getActiveEvents(): GameEvent[] {
+  const now = new Date();
+  
+  return GAME_EVENTS.map(event => ({
+    ...event,
+    isActive: now >= event.startDate && now <= event.endDate,
+  })).filter(e => e.isActive);
 }
 
-/**
- * Retorna próximo evento
- */
-export function getNextEvent(currentWeek: number): TimeEvent | null {
-  const upcoming = TIME_EVENTS.filter(e => e.startWeek > currentWeek)
-    .sort((a, b) => a.startWeek - b.startWeek);
-  return upcoming[0] || null;
+export function getUpcomingEvents(): GameEvent[] {
+  const now = new Date();
+  
+  return GAME_EVENTS.filter(event => now < event.startDate)
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .slice(0, 3);
 }
 
+export function getEventMultipliers(): { xp: number; coronas: number } {
+  const activeEvents = getActiveEvents();
+  
+  let xpMultiplier = 1;
+  let coronasMultiplier = 1;
+  
+  activeEvents.forEach(event => {
+    if (event.bonuses.xpMultiplier) {
+      xpMultiplier = Math.max(xpMultiplier, event.bonuses.xpMultiplier);
+    }
+    if (event.bonuses.coronasMultiplier) {
+      coronasMultiplier = Math.max(coronasMultiplier, event.bonuses.coronasMultiplier);
+    }
+  });
+  
+  return { xp: xpMultiplier, coronas: coronasMultiplier };
+}
+
+export function hasActiveEvent(): boolean {
+  return getActiveEvents().length > 0;
+}
+
+export function getEventTimeRemaining(event: GameEvent): string {
+  const now = new Date();
+  const diff = event.endDate.getTime() - now.getTime();
+  
+  if (diff <= 0) return 'Encerrado';
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (days > 0) return `${days}d ${hours}h restantes`;
+  if (hours > 0) return `${hours}h ${minutes}m restantes`;
+  return `${minutes}m restantes`;
+}

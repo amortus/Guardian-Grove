@@ -13,6 +13,8 @@ import { GuardianHubScene3D } from '../3d/scenes/GuardianHubScene3D';
 import { canStartAction, getActionProgress, getActionName as getRealtimeActionName } from '../systems/realtime-actions';
 import { STARTER_CONFIG } from '../systems/game-state';
 import { getGameTime } from '../utils/day-night';
+import { MissionUI } from './mission-ui';
+import { getRandomMission } from '../systems/exploration-missions';
 
 const HEADER_HEIGHT = 130; // Aumentado para acomodar data do calendário
 const SIDE_PANEL_WIDTH = 0; // Painéis laterais removidos na nova HUD diegética
@@ -50,11 +52,22 @@ export class GameUI {
   private ranchScene3D: GuardianHubScene3D | null = null;
   private ranchScene3DContainer: HTMLDivElement | null = null;
   private useFullRanchScene: boolean = true; // Toggle to use full ranch vs mini viewer
+
+  // Mission UI
+  private missionUI: MissionUI | null = null;
+  
+  // Exploration system
+  private showExplorationPrompt = false;
   private lastRealRanchSceneWidth: number = 0; // Cache do tamanho REAL (escalado) para detectar mudança
   private lastRealRanchSceneHeight: number = 0;
   private ranchScenePointerHandlers: { move: (event: PointerEvent) => void; click: (event: PointerEvent) => void; leave: () => void } | null = null;
   private hubHoverLabel: HTMLDivElement | null = null;
   private currentHubHoverId: string | null = null;
+  
+  // Auto-logout por inatividade
+  private lastActivityTime = Date.now();
+  private inactivityCheckInterval: number | null = null;
+  private readonly INACTIVITY_TIMEOUT = 2 * 60 * 1000; // 2 minutos em milissegundos
   private hubInteractions: Record<string, { label: string; action: () => void }> = {
     mission_board: { label: 'as Missões', action: () => { this.activeMenuItem = 'quests'; this.onOpenQuests(); } },
     craft_well: { label: 'a Oficina', action: () => { this.activeMenuItem = 'craft'; this.onOpenCraft(); } },
@@ -74,7 +87,11 @@ export class GameUI {
     this.ctx = ctx;
     this.gameState = gameState;
     
+    // Initialize Mission UI
+    this.missionUI = new MissionUI(canvas);
+    
     this.setupEventListeners();
+    this.startInactivityMonitor();
   }
   
   // Cleanup 3D mini viewer
@@ -225,6 +242,37 @@ export class GameUI {
       this.ranchScene3D.setInteractionCallback((id) => this.handleHubInteraction(id));
       this.ranchScene3D.setHoverCallback((id) => this.updateHubHover(id));
       this.ranchScene3D.setBeast(beast.line);
+      
+      // Setup exploration entrance detection
+      this.ranchScene3D.onExplorationPrompt(() => {
+        this.updateExplorationPrompt();
+      });
+      
+      // Setup exploration callback (quando pressiona E ou clica no portal)
+      this.ranchScene3D.setExplorationCallback(() => {
+        console.log('[GameUI] 🎮 Exploration callback acionado!');
+        this.showExplorationMessage();
+      });
+      
+      // Setup building callbacks
+      this.ranchScene3D.setCraftCallback(() => {
+        console.log('[GameUI] 🔨 Abrindo Craft!');
+        this.activeMenuItem = 'craft';
+        this.onOpenCraft();
+      });
+      
+      this.ranchScene3D.setMarketCallback(() => {
+        console.log('[GameUI] 🛒 Abrindo Market!');
+        this.activeMenuItem = 'shop';
+        this.onOpenShop();
+      });
+      
+      this.ranchScene3D.setMissionCallback(() => {
+        console.log('[GameUI] 📜 Abrindo Missions!');
+        this.activeMenuItem = 'quests';
+        this.onOpenQuests();
+      });
+      
       this.ranchScene3D.startLoop();
       
       this.currentBeastForViewer = beast;
@@ -322,7 +370,52 @@ export class GameUI {
   }
 
   // Call this when UI is destroyed or beast changes significantly
+  private drawEventBanner() {
+    // Importa dinamicamente para evitar circular dependency
+    try {
+      const { getActiveEvents, getEventTimeRemaining } = require('../data/events');
+      const activeEvents = getActiveEvents();
+      
+      if (activeEvents.length === 0) return;
+      
+      const event = activeEvents[0]; // Mostra o primeiro evento ativo
+      const bannerHeight = 35;
+      const bannerY = 0;
+      
+      // Fundo do banner com gradiente
+      const gradient = this.ctx.createLinearGradient(0, bannerY, 0, bannerY + bannerHeight);
+      gradient.addColorStop(0, 'rgba(255, 200, 87, 0.95)');
+      gradient.addColorStop(1, 'rgba(255, 165, 0, 0.85)');
+      
+      this.ctx.fillStyle = gradient;
+      this.ctx.fillRect(0, bannerY, this.canvas.width, bannerHeight);
+      
+      // Borda inferior
+      this.ctx.fillStyle = 'rgba(255, 200, 87, 1)';
+      this.ctx.fillRect(0, bannerY + bannerHeight - 2, this.canvas.width, 2);
+      
+      // Texto do evento
+      const timeRemaining = getEventTimeRemaining(event);
+      const eventText = `${event.name} • ${timeRemaining}`;
+      
+      drawText(this.ctx, eventText, this.canvas.width / 2, bannerY + bannerHeight / 2 + 2, {
+        align: 'center',
+        baseline: 'middle',
+        font: 'bold 16px monospace',
+        color: '#000000',
+      });
+    } catch (e) {
+      // Silently fail if events module not available
+    }
+  }
+
   public dispose() {
+    // Limpa o monitor de inatividade
+    if (this.inactivityCheckInterval) {
+      clearInterval(this.inactivityCheckInterval);
+      this.inactivityCheckInterval = null;
+    }
+    
     this.cleanup3DMiniViewer();
     this.cleanupRanchScene3D();
   }
@@ -425,15 +518,50 @@ export class GameUI {
   }
 
   private setupEventListeners() {
+    // Registra atividade do usuário
+    const registerActivity = () => {
+      this.lastActivityTime = Date.now();
+    };
+    
     this.canvas.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       this.mouseX = ((e.clientX - rect.left) / rect.width) * this.canvas.width;
       this.mouseY = ((e.clientY - rect.top) / rect.height) * this.canvas.height;
+      registerActivity();
     });
 
     this.canvas.addEventListener('mousedown', () => {
       this.handleClick();
+      registerActivity();
     });
+
+    // Tecla E para interações (exploração e buildings)
+    window.addEventListener('keydown', (e) => {
+      registerActivity();
+      
+      if (e.key === 'e' || e.key === 'E') {
+        if (this.ranchScene3D && this.activeMenuItem === 'guardian_village') {
+          // Tenta interagir com buildings primeiro (Craft, Market, Missions)
+          const interactedWithBuilding = this.ranchScene3D.tryInteractWithBuilding();
+          
+          // Se não interagiu com building, tenta entrar na exploração
+          if (!interactedWithBuilding) {
+            const entered = this.ranchScene3D.tryEnterExploration();
+            if (entered) {
+              console.log('[GameUI] 🎮 Iniciando exploração...');
+              this.showExplorationMessage();
+            }
+          }
+        }
+      }
+    });
+    
+    // Registra atividade global (cliques, teclas, scroll)
+    window.addEventListener('click', registerActivity);
+    window.addEventListener('scroll', registerActivity);
+    
+    // Registra atividade quando interage com o portal de exploração
+    window.addEventListener('explorationPrompt', registerActivity);
   }
 
   private handleClick() {
@@ -445,6 +573,57 @@ export class GameUI {
         }
       }
     });
+  }
+
+  private showExplorationMessage() {
+    // Inicia missão educativa aleatória
+    if (this.missionUI) {
+      const mission = getRandomMission();
+      console.log('[GameUI] 🎮 Iniciando missão:', mission.title);
+      
+      this.missionUI.startMission(mission, (completedMission) => {
+        console.log('[GameUI] ✅ Missão completa:', completedMission.title);
+        // Aqui você pode dar recompensas, salvar progresso, etc.
+      });
+    }
+  }
+  
+  // ========== AUTO-LOGOUT POR INATIVIDADE ==========
+  
+  private startInactivityMonitor() {
+    console.log('[GameUI] 🕐 Monitoramento de inatividade iniciado (2 minutos)');
+    
+    // Verifica a cada 10 segundos
+    this.inactivityCheckInterval = window.setInterval(() => {
+      this.checkInactivity();
+    }, 10 * 1000);
+  }
+  
+  private checkInactivity() {
+    const now = Date.now();
+    const timeSinceLastActivity = now - this.lastActivityTime;
+    
+    if (timeSinceLastActivity >= this.INACTIVITY_TIMEOUT) {
+      console.log('[GameUI] ⏰ Inatividade detectada! Fazendo logout...');
+      this.handleInactivityLogout();
+    }
+  }
+  
+  private async handleInactivityLogout() {
+    // Para o monitor de inatividade
+    if (this.inactivityCheckInterval) {
+      clearInterval(this.inactivityCheckInterval);
+      this.inactivityCheckInterval = null;
+    }
+    
+    // Limpa token e redireciona para login
+    localStorage.removeItem('auth_token');
+    
+    // Mostra mensagem
+    alert('⏰ Você foi desconectado por inatividade (2 minutos sem ação).\n\nFaça login novamente para continuar.');
+    
+    // Recarrega a página para ir para a tela de login
+    window.location.reload();
   }
 
   /**
@@ -477,10 +656,18 @@ export class GameUI {
       this.drawAvatarSelectionOverlay();
     }
 
+    // Mission UI (overlay)
+    if (this.missionUI) {
+      this.missionUI.draw();
+    }
+
     // Week Info removido - exploração vai para o header
   }
 
   private drawHeader() {
+    // Banner de evento (acima do header)
+    this.drawEventBanner();
+    
     const gradient = this.ctx.createLinearGradient(0, 0, 0, HEADER_HEIGHT);
     gradient.addColorStop(0, 'rgba(6, 22, 16, 0.92)');
     gradient.addColorStop(1, 'rgba(6, 22, 16, 0.55)');
@@ -530,6 +717,9 @@ export class GameUI {
       height: settingsBtnSize,
       action: () => this.onOpenSettings(),
     });
+    
+    // Menu centralizado (Inventário, Status, etc.)
+    this.drawTopMenu(buttonY, logoutBtnHeight);
 
     const chipPaddingX = 18;
     const chipPaddingY = 18;
@@ -620,6 +810,47 @@ export class GameUI {
       font: '14px monospace',
       color: 'rgba(215, 235, 227, 0.75)',
       shadow: false,
+    });
+  }
+  
+  private drawTopMenu(buttonY: number, buttonHeight: number) {
+    // Menu de ações principais (Inventário, Status, Conquistas, Ranking, Roleta, Mini-Games, Skins, Configurações)
+    const menuItems = [
+      { id: 'inventory', icon: '🎒', label: 'Inventário', action: () => this.onOpenInventory() },
+      { id: 'status', icon: '📊', label: 'Status', action: () => this.onOpenStatus() },
+      { id: 'achievements', icon: '🏆', label: 'Conquistas', action: () => this.onOpenAchievements() },
+      { id: 'leaderboard', icon: '🎖️', label: 'Ranking', action: () => this.onOpenLeaderboard() },
+      { id: 'daily_spin', icon: '🎰', label: 'Roleta', action: () => this.onOpenDailySpin() },
+      { id: 'minigames', icon: '🎮', label: 'Mini-Games', action: () => this.onOpenMinigames() },
+      { id: 'skin_shop', icon: '🛒', label: 'Loja Skins', action: () => this.onOpenSkinShop() },
+      { id: 'skin_manager', icon: '🎭', label: 'Trocar Skin', action: () => this.onOpenSkinManager() },
+      { id: 'settings', icon: '⚙️', label: 'Config', action: () => this.onOpenSettings() },
+    ];
+    
+    const btnWidth = 140;
+    const btnGap = 12;
+    const totalWidth = (btnWidth * menuItems.length) + (btnGap * (menuItems.length - 1));
+    let currentX = (this.canvas.width / 2) - (totalWidth / 2);
+    
+    menuItems.forEach(item => {
+      const isActive = this.activeMenuItem === item.id;
+      const isHovered = isMouseOver(this.mouseX, this.mouseY, currentX, buttonY, btnWidth, buttonHeight);
+      
+      drawButton(this.ctx, currentX, buttonY, btnWidth, buttonHeight, `${item.icon} ${item.label}`, {
+        variant: isActive ? 'primary' : 'ghost',
+        isHovered: isHovered,
+        fontSize: 14,
+      });
+      
+      this.buttons.set(item.id, {
+        x: currentX,
+        y: buttonY,
+        width: btnWidth,
+        height: buttonHeight,
+        action: item.action,
+      });
+      
+      currentX += btnWidth + btnGap;
     });
   }
 
@@ -1592,18 +1823,46 @@ export class GameUI {
   public onOpenVillage: () => void = () => {};
   public onOpenInventory: () => void = () => {};
   public onOpenCraft: () => void = () => {};
+  public onOpenShop: () => void = () => {};
+  public onOpenStatus: () => void = () => {};
   public onOpenArenaPvp: () => void = () => {};
   public onOpenDungeons: () => void = () => {};
   public onOpenQuests: () => void = () => {};
   public onOpenAchievements: () => void = () => {};
+  public onOpenLeaderboard: () => void = () => {};
+  public onOpenDailySpin: () => void = () => {};
+  public onOpenMinigames: () => void = () => {};
   public onOpenExploration: () => void = () => {};
   public onNavigate: (screen: string) => void = () => {};
   public onOpenSettings: () => void = () => {};
+  public onOpenSkinShop: () => void = () => {};
+  public onOpenSkinManager: () => void = () => {};
   public onLogout: () => void = () => {};
   public onSelectAvatar: (line: BeastLine) => void = () => {};
 
   public updateGameState(gameState: GameState) {
     this.gameState = gameState;
+  }
+  
+  /**
+   * Recarrega a skin do jogador na cena 3D
+   */
+  public reloadPlayerSkin(skinId: string) {
+    console.log(`[GameUI] 🔄 Recarregando skin do jogador: ${skinId}`);
+    
+    if (this.ranchScene3D) {
+      this.ranchScene3D.changePlayerSkin(skinId);
+    }
+  }
+  
+  /**
+   * Mostra uma notificação temporária no topo da tela
+   */
+  public showNotification(message: string) {
+    console.log(`[GameUI] 📢 Notificação: ${message}`);
+    
+    // Usar o sistema de mensagem inline já existente
+    this.showCompletionMessage(message);
   }
 
   private drawChatStyleTab(
