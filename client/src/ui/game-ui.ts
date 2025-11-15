@@ -814,18 +814,21 @@ export class GameUI {
   }
   
   private drawTopMenu(buttonY: number, buttonHeight: number) {
-    // Menu de ações principais (Inventário, Status, Conquistas, Ranking, Roleta, Mini-Games, Skins, Configurações)
+    // Menu de ações principais (SEM Status, movido para baixo)
     const menuItems = [
       { id: 'inventory', icon: '🎒', label: 'Inventário', action: () => this.onOpenInventory() },
-      { id: 'status', icon: '📊', label: 'Status', action: () => this.onOpenStatus() },
       { id: 'achievements', icon: '🏆', label: 'Conquistas', action: () => this.onOpenAchievements() },
       { id: 'leaderboard', icon: '🎖️', label: 'Ranking', action: () => this.onOpenLeaderboard() },
       { id: 'daily_spin', icon: '🎰', label: 'Roleta', action: () => this.onOpenDailySpin() },
       { id: 'minigames', icon: '🎮', label: 'Mini-Games', action: () => this.onOpenMinigames() },
       { id: 'skin_shop', icon: '🛒', label: 'Loja Skins', action: () => this.onOpenSkinShop() },
       { id: 'skin_manager', icon: '🎭', label: 'Trocar Skin', action: () => this.onOpenSkinManager() },
-      { id: 'settings', icon: '⚙️', label: 'Config', action: () => this.onOpenSettings() },
     ];
+    
+    // Nova posição: abaixo das informações de Coronas/Level
+    // buttonY original era ~20, agora vai ser ~100 (abaixo dos chips)
+    const newButtonY = 100;
+    const newButtonHeight = 42;
     
     const btnWidth = 140;
     const btnGap = 12;
@@ -834,9 +837,9 @@ export class GameUI {
     
     menuItems.forEach(item => {
       const isActive = this.activeMenuItem === item.id;
-      const isHovered = isMouseOver(this.mouseX, this.mouseY, currentX, buttonY, btnWidth, buttonHeight);
+      const isHovered = isMouseOver(this.mouseX, this.mouseY, currentX, newButtonY, btnWidth, newButtonHeight);
       
-      drawButton(this.ctx, currentX, buttonY, btnWidth, buttonHeight, `${item.icon} ${item.label}`, {
+      drawButton(this.ctx, currentX, newButtonY, btnWidth, newButtonHeight, `${item.icon} ${item.label}`, {
         variant: isActive ? 'primary' : 'ghost',
         isHovered: isHovered,
         fontSize: 14,
@@ -844,9 +847,9 @@ export class GameUI {
       
       this.buttons.set(item.id, {
         x: currentX,
-        y: buttonY,
+        y: newButtonY,
         width: btnWidth,
-        height: buttonHeight,
+        height: newButtonHeight,
         action: item.action,
       });
       
