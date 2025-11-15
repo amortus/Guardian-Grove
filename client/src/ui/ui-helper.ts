@@ -492,19 +492,7 @@ export function drawButton(
   ctx.fill();
   ctx.restore();
 
-  // Highlight droplet
-  if (!isDisabled && !isFlat) {
-    ctx.save();
-    roundedRectPath(ctx, x, y, width, height, radius);
-    ctx.clip();
-    const droplet = ctx.createRadialGradient(x + width * 0.25, y + height * 0.25, 0, x + width * 0.25, y + height * 0.25, Math.max(width, height) * 0.9);
-    droplet.addColorStop(0, GLASS_THEME.button.droplet);
-    droplet.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.globalAlpha = isActive ? 0.7 : 1;
-    ctx.fillStyle = droplet;
-    ctx.fillRect(x, y, width, height);
-    ctx.restore();
-  }
+  // Highlight droplet removido para melhor legibilidade
 
   const borderColor = resolveButtonBorder(options, isActive, isHovered);
 
