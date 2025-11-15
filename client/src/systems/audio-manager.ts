@@ -6,12 +6,19 @@
 export class AudioManager {
   private static instance: AudioManager;
   private backgroundMusic: HTMLAudioElement | null = null;
+  private currentTrackIndex = 0;
   private sfxVolume = 0.5;
-  private musicVolume = 0.3;
+  private musicVolume = 0.5; // Começa em 50% (antes era 0.3)
   private isMuted = false;
   
   // Cache de sons
   private sounds: Map<string, HTMLAudioElement> = new Map();
+  
+  // Playlist de músicas de fundo
+  private musicTracks = [
+    '/assets/Music/Musica1.mp3',
+    '/assets/Music/Musica2.mp3',
+  ];
   
   private constructor() {
     // Carrega configurações do localStorage
@@ -32,20 +39,66 @@ export class AudioManager {
   }
   
   /**
-   * Toca música de fundo
+   * Toca música de fundo (playlist aleatória)
    */
   public playBackgroundMusic(track: 'hub' | 'exploration' | 'minigame' = 'hub') {
-    // Por enquanto, usa áudio gerado proceduralmente ou placeholder
-    // Em produção, você adicionaria arquivos .mp3/.ogg
     if (this.isMuted) return;
     
-    console.log(`[AUDIO] 🎵 Tocando música: ${track}`);
+    // Para música atual se existir
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+    }
     
-    // TODO: Implementar quando tiver arquivos de áudio
-    // this.backgroundMusic = new Audio(`/assets/audio/music/${track}.mp3`);
-    // this.backgroundMusic.volume = this.musicVolume;
-    // this.backgroundMusic.loop = true;
-    // this.backgroundMusic.play();
+    // Escolhe uma música aleatória da playlist
+    this.currentTrackIndex = Math.floor(Math.random() * this.musicTracks.length);
+    const selectedTrack = this.musicTracks[this.currentTrackIndex];
+    
+    console.log(`[AUDIO] 🎵 Tocando música: ${selectedTrack} (${track} mode)`);
+    
+    // Cria novo elemento de áudio
+    this.backgroundMusic = new Audio(selectedTrack);
+    this.backgroundMusic.volume = this.musicVolume;
+    this.backgroundMusic.loop = false; // Não faz loop, troca de música ao final
+    
+    // Quando terminar, toca a próxima música
+    this.backgroundMusic.addEventListener('ended', () => {
+      this.playNextTrack();
+    });
+    
+    // Toca a música
+    this.backgroundMusic.play().catch(err => {
+      console.warn('[AUDIO] ⚠️ Falha ao tocar música (user interaction needed):', err);
+    });
+  }
+  
+  /**
+   * Toca a próxima música da playlist
+   */
+  private playNextTrack() {
+    if (this.isMuted) return;
+    
+    // Avança para próxima música (circular)
+    this.currentTrackIndex = (this.currentTrackIndex + 1) % this.musicTracks.length;
+    const nextTrack = this.musicTracks[this.currentTrackIndex];
+    
+    console.log(`[AUDIO] 🎵 Próxima música: ${nextTrack}`);
+    
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+    }
+    
+    this.backgroundMusic = new Audio(nextTrack);
+    this.backgroundMusic.volume = this.musicVolume;
+    this.backgroundMusic.loop = false;
+    
+    this.backgroundMusic.addEventListener('ended', () => {
+      this.playNextTrack();
+    });
+    
+    this.backgroundMusic.play().catch(err => {
+      console.warn('[AUDIO] ⚠️ Falha ao tocar próxima música:', err);
+    });
   }
   
   /**

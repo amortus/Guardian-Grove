@@ -583,7 +583,22 @@ async function init() {
     //   }
     // }
 
-    // Sistema de áudio removido
+    // Sistema de áudio - Inicia música de fundo
+    // Nota: Navegadores bloqueiam autoplay até interação do usuário
+    // A música vai começar após o primeiro clique/toque
+    const { audioManager } = await import('./systems/audio-manager');
+    
+    // Tenta tocar música após qualquer interação do usuário
+    const startMusicOnInteraction = () => {
+      audioManager.playBackgroundMusic('hub');
+      console.log('[AUDIO] 🎵 Sistema de música ativado!');
+      // Remove o listener após primeira interação
+      document.removeEventListener('click', startMusicOnInteraction);
+      document.removeEventListener('keydown', startMusicOnInteraction);
+    };
+    
+    document.addEventListener('click', startMusicOnInteraction, { once: true });
+    document.addEventListener('keydown', startMusicOnInteraction, { once: true });
     
     // Setup global mouse handlers for options menu
     canvas.addEventListener('click', (e) => {
