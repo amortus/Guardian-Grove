@@ -67,7 +67,7 @@ export class SkinShopUI {
     });
     
     // Saldo de Coronas
-    drawText(this.ctx, `💰 ${gameState.resources.coronas.toLocaleString()} Coronas`, width / 2, 95, {
+    drawText(this.ctx, `💰 ${gameState.economy.coronas.toLocaleString()} Coronas`, width / 2, 95, {
       align: 'center',
       font: 'bold 22px monospace',
       color: '#FFC857',
@@ -291,7 +291,7 @@ export class SkinShopUI {
         color: '#7DE8C4',
       });
     } else {
-      const canAfford = gameState.resources.coronas >= skin.price;
+      const canAfford = gameState.economy.coronas >= skin.price;
       this.ctx.fillStyle = canAfford ? '#6DC7A4' : '#4F4F4F';
       this.ctx.fillRect(btnX, btnY, btnWidth, 50);
       

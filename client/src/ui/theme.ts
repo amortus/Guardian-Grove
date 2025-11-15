@@ -35,6 +35,7 @@ export const GLASS_THEME = {
       lilac: '#8DA8FF',
       purple: '#3F6EE3',
       emerald: '#4FE2B2',
+      green: '#6DC7A4', // Guardian Grove theme color
       amber: '#FFCA66',
       danger: '#FF7A7A',
     },
