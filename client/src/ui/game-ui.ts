@@ -868,7 +868,10 @@ export class GameUI {
     }
   }
 
+  // Painel de HP/Essência/Fadiga REMOVIDO - Não usado neste jogo
   private drawBeastHudOverlay() {
+    return; // Desativado
+    
     const beast = this.gameState.activeBeast;
     if (!beast) {
       return;
