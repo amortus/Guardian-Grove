@@ -703,19 +703,23 @@ export class GameUI {
       action: () => this.onLogout(),
     });
 
-    const isSettingsHovered = isMouseOver(this.mouseX, this.mouseY, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize);
-    drawButton(this.ctx, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize, '⚙️', {
+    const isMuteHovered = isMouseOver(this.mouseX, this.mouseY, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize);
+    
+    // Ícone muda baseado no estado (muted ou não)
+    const muteIcon = this.isMuted ? '🔇' : '🔊';
+    
+    drawButton(this.ctx, settingsBtnX, buttonY, settingsBtnSize, settingsBtnSize, muteIcon, {
       variant: 'ghost',
-      isHovered: isSettingsHovered,
+      isHovered: isMuteHovered,
       fontSize: 20,
     });
 
-    this.buttons.set('settings', {
+    this.buttons.set('mute', {
       x: settingsBtnX,
       y: buttonY,
       width: settingsBtnSize,
       height: settingsBtnSize,
-      action: () => this.onOpenSettings(),
+      action: () => this.onToggleMute(),
     });
     
     // Menu centralizado (Inventário, Status, etc.)
@@ -1837,10 +1841,14 @@ export class GameUI {
   public onNavigate: (screen: string) => void = () => {};
   public onOpenSettings: () => void = () => {};
   public onOpenHelp: () => void = () => {};
+  public onToggleMute: () => void = () => {};
   public onOpenSkinShop: () => void = () => {};
   public onOpenSkinManager: () => void = () => {};
   public onLogout: () => void = () => {};
   public onSelectAvatar: (line: BeastLine) => void = () => {};
+  
+  // Estado do mute (atualizado externamente)
+  public isMuted = false;
 
   public updateGameState(gameState: GameState) {
     this.gameState = gameState;

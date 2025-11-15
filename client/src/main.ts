@@ -1330,6 +1330,13 @@ async function setupGame() {
       openSettings();
     };
     
+    // Setup mute toggle callback
+    gameUI.onToggleMute = () => {
+      audioManager.toggleMute();
+      gameUI.isMuted = audioManager.isMutedState();
+      console.log(`[AUDIO] ${gameUI.isMuted ? '🔇 Mutado' : '🔊 Desmutado'}`);
+    };
+    
     // Setup help callback
     gameUI.onOpenHelp = () => {
       openHelp();
@@ -3374,9 +3381,9 @@ function openSkinShop() {
         
         // Atualizar coronas no gameState
         if (response.data && typeof response.data.newBalance === 'number') {
-          gameState.resources.coronas = response.data.newBalance;
+          gameState.economy.coronas = response.data.newBalance;
         } else {
-          gameState.resources.coronas -= price;
+          gameState.economy.coronas -= price;
         }
         
         // Sincronizar com servidor
