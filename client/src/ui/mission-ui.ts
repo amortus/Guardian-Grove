@@ -24,7 +24,8 @@ export class MissionUI {
   private feedbackMessage: string | null = null;
   private feedbackTimer = 0;
   private showingCompletion = false;
-  private completionMessage: string | null = null;
+  private completionDetails: { message: string; tip: string; reward?: number } | null = null;
+  private onCloseCallback: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -55,6 +56,10 @@ export class MissionUI {
     this.isVisible = true;
     this.onComplete = onComplete;
     console.log('[MissionUI] 🎮 Missão iniciada:', mission.title);
+  }
+
+  public setOnCloseCallback(callback: (() => void) | null) {
+    this.onCloseCallback = callback;
   }
 
   public setOnChoiceCallback(callback: (choice: Choice) => void) {
@@ -125,16 +130,18 @@ export class MissionUI {
 
     // Mostra mensagem de conclusão em Canvas
     this.showingCompletion = true;
-    this.completionMessage = 
-      `✨ ${this.mission.completionMessage}\n\n` +
-      `🌟 Além da Tela:\n${this.mission.realWorldPrompt}`;
+    this.completionDetails = {
+      message: this.mission.completionMessage,
+      tip: this.mission.realWorldPrompt,
+      reward: this.mission.rewardCoronas,
+    };
     
     // Não fecha automaticamente, espera clique do usuário
   }
   
   private closeCompletion() {
     this.showingCompletion = false;
-    this.completionMessage = null;
+    this.completionDetails = null;
     this.onComplete?.(this.mission!);
     this.close();
   }
@@ -144,6 +151,7 @@ export class MissionUI {
     this.mission = null;
     this.currentNode = null;
     this.buttons.clear();
+    this.onCloseCallback?.();
   }
 
   public draw() {
@@ -249,8 +257,9 @@ export class MissionUI {
         this.ctx.shadowOffsetX = 1;
         this.ctx.shadowOffsetY = 1;
         
+        const displayText = choice.text.replace(/✅/g, '').trim();
         // Quebra texto longo em múltiplas linhas
-        this.drawButtonText(choice.text, buttonX + buttonWidth / 2, buttonY + buttonHeight / 2, buttonWidth - 20);
+        this.drawButtonText(displayText, buttonX + buttonWidth / 2, buttonY + buttonHeight / 2, buttonWidth - 20);
         
         // Reset shadow
         this.ctx.shadowColor = 'transparent';
@@ -266,7 +275,7 @@ export class MissionUI {
     }
     
     // Desenha completion se houver
-    if (this.showingCompletion && this.completionMessage) {
+    if (this.showingCompletion && this.completionDetails) {
       this.drawCompletionOverlay(panelX, panelY, panelWidth, panelHeight);
     }
   }
@@ -313,6 +322,7 @@ export class MissionUI {
   }
   
   private drawCompletionOverlay(panelX: number, panelY: number, panelWidth: number, panelHeight: number) {
+    if (!this.completionDetails) return;
     // Overlay completo
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
     this.ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
@@ -330,13 +340,36 @@ export class MissionUI {
     const textY = panelY + 180;
     const textWidth = panelWidth - 120;
     this.drawWrappedText(
-      this.completionMessage!,
+      `✨ ${this.completionDetails.message}`,
       panelX + 60,
       textY,
       textWidth,
       22,
       '#e0e0e0'
     );
+
+    // Dica/Tarefa
+    const tipStartY = panelY + panelHeight / 2;
+
+    this.drawWrappedText(
+      `💡 Dica de hoje: ${this.completionDetails.tip}`,
+      panelX + 60,
+      tipStartY,
+      textWidth,
+      20,
+      '#bde0ff'
+    );
+
+    if (this.completionDetails.reward && this.completionDetails.reward > 0) {
+      this.ctx.font = 'bold 22px Arial, sans-serif';
+      this.ctx.fillStyle = '#ffd962';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(
+        `💰 Recompensa: +${this.completionDetails.reward.toLocaleString('pt-BR')} coronas`,
+        panelX + panelWidth / 2,
+        panelY + panelHeight - 90
+      );
+    }
     
     // Instrução para continuar
     this.ctx.font = 'bold 18px Arial, sans-serif';

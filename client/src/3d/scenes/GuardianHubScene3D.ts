@@ -44,6 +44,7 @@ export class GuardianHubScene3D {
   private pointer = new THREE.Vector2();
   private cameraOffset = new THREE.Vector3(0, 5.8, 10.4);
   private cameraFollowStrength = 0.12;
+  private inputEnabled = true;
   private critters: VillageCritters | null = null;
   
   // Ghost system (other players)
@@ -1042,6 +1043,10 @@ export class GuardianHubScene3D {
   }
 
   public handlePointerMove(clientX: number, clientY: number, rect: DOMRect): string | null {
+    if (!this.inputEnabled) {
+      this.hoverCallback?.(null);
+      return null;
+    }
     this.preparePointer(clientX, clientY, rect);
     const entry = this.pickInteractable();
     let hoveredId: string | null = entry?.id ?? null;
@@ -1062,6 +1067,9 @@ export class GuardianHubScene3D {
   }
 
   public handlePointerClick(clientX: number, clientY: number, rect: DOMRect): string | null {
+    if (!this.inputEnabled) {
+      return null;
+    }
     // Debug para entender porque o clique não está movendo o guardião
     // eslint-disable-next-line no-console
     console.log('[GuardianHubScene3D] handlePointerClick', {
@@ -1211,6 +1219,14 @@ export class GuardianHubScene3D {
 
   private updateBeastMovement(delta: number) {
     if (!this.beastGroup || !this.beastModel) {
+      return;
+    }
+
+    if (!this.inputEnabled) {
+      if (this.isMoving) {
+        this.isMoving = false;
+        this.playRigAnimation('idle');
+      }
       return;
     }
 
@@ -1589,6 +1605,18 @@ export class GuardianHubScene3D {
   
   public setMissionCallback(callback: () => void) {
     this.missionCallback = callback;
+  }
+
+  public setInputEnabled(enabled: boolean) {
+    this.inputEnabled = enabled;
+    if (!enabled) {
+      this.resetWASDKeys();
+      this.currentTarget = null;
+      this.isMoving = false;
+      if (this.beastModel) {
+        this.playRigAnimation('idle');
+      }
+    }
   }
   
   public tryInteractWithBuilding(): boolean {

@@ -101,7 +101,7 @@ export class AuthUI {
 
     // Pré-carregar logo do Guardian Grove
     this.logoImage = new Image();
-    this.logoImage.src = '/assets/branding/guardian-grove-logo.svg';
+    this.logoImage.src = '/assets/branding/guardian-grove-logo-2048.png';
     this.logoImage.onload = () => {
       this.logoLoaded = true;
       this.draw(true);
@@ -907,7 +907,24 @@ export class AuthUI {
     const logoY = panelY + 60;
 
     if (this.logoLoaded && this.logoImage) {
-      this.ctx.drawImage(this.logoImage, logoX, logoY, logoMaxWidth, logoHeight);
+      const naturalWidth = this.logoImage.naturalWidth || logoMaxWidth;
+      const naturalHeight = this.logoImage.naturalHeight || logoHeight;
+      const aspect = naturalWidth / naturalHeight || 1;
+      let renderWidth = logoMaxWidth;
+      let renderHeight = renderWidth / aspect;
+      if (renderHeight > logoHeight) {
+        renderHeight = logoHeight;
+        renderWidth = renderHeight * aspect;
+      }
+      const drawX = panelX + (panelWidth - renderWidth) / 2;
+      const drawY = logoY + (logoHeight - renderHeight) / 2;
+      this.ctx.save();
+      this.ctx.imageSmoothingEnabled = true;
+      this.ctx.imageSmoothingQuality = 'high';
+      this.ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      this.ctx.shadowBlur = 25;
+      this.ctx.drawImage(this.logoImage, drawX, drawY, renderWidth, renderHeight);
+      this.ctx.restore();
     } else {
       drawText(this.ctx, 'Guardian Grove', panelX + panelWidth / 2, panelY + 120, {
         font: 'bold 48px monospace',

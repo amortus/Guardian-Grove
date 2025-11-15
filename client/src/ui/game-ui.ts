@@ -14,7 +14,7 @@ import { canStartAction, getActionProgress, getActionName as getRealtimeActionNa
 import { STARTER_CONFIG } from '../systems/game-state';
 import { getGameTime } from '../utils/day-night';
 import { MissionUI } from './mission-ui';
-import { getRandomMission } from '../systems/exploration-missions';
+import { getRandomMission, DEFAULT_MISSION_REWARD } from '../systems/exploration-missions';
 
 const HEADER_HEIGHT = 130; // Aumentado para acomodar data do calendário
 const SIDE_PANEL_WIDTH = 0; // Painéis laterais removidos na nova HUD diegética
@@ -58,6 +58,7 @@ export class GameUI {
   
   // Exploration system
   private showExplorationPrompt = false;
+  private hubInputEnabled = true;
   private lastRealRanchSceneWidth: number = 0; // Cache do tamanho REAL (escalado) para detectar mudança
   private lastRealRanchSceneHeight: number = 0;
   private ranchScenePointerHandlers: { move: (event: PointerEvent) => void; click: (event: PointerEvent) => void; leave: () => void } | null = null;
@@ -89,6 +90,9 @@ export class GameUI {
     
     // Initialize Mission UI
     this.missionUI = new MissionUI(canvas);
+    this.missionUI.setOnCloseCallback(() => {
+      this.setHubInputEnabled(true);
+    });
     
     this.setupEventListeners();
     this.startInactivityMonitor();
@@ -149,6 +153,21 @@ export class GameUI {
     }
     
     console.log('[GameUI] ✓ Ranch Scene 3D cleanup complete');
+  }
+
+  private updateHubInputState() {
+    const allowInput = this.hubInputEnabled && !this.gameState.needsAvatarSelection;
+    if (this.ranchScene3DContainer) {
+      this.ranchScene3DContainer.style.pointerEvents = allowInput ? 'auto' : 'none';
+    }
+    if (this.ranchScene3D) {
+      this.ranchScene3D.setInputEnabled(allowInput);
+    }
+  }
+
+  private setHubInputEnabled(enabled: boolean) {
+    this.hubInputEnabled = enabled;
+    this.updateHubInputState();
   }
   
   // Create or update Ranch Scene 3D
@@ -301,8 +320,9 @@ export class GameUI {
       this.ranchScene3DContainer.style.top = `${realTop}px`;
       this.ranchScene3DContainer.style.width = `${realWidth}px`;
       this.ranchScene3DContainer.style.height = `${realHeight}px`;
-      this.ranchScene3DContainer.style.pointerEvents = this.gameState.needsAvatarSelection ? 'none' : 'auto';
     }
+    
+    this.updateHubInputState();
   }
 
   private ensureHubHoverLabel() {
@@ -580,10 +600,16 @@ export class GameUI {
     if (this.missionUI) {
       const mission = getRandomMission();
       console.log('[GameUI] 🎮 Iniciando missão:', mission.title);
+      this.setHubInputEnabled(false);
       
       this.missionUI.startMission(mission, (completedMission) => {
         console.log('[GameUI] ✅ Missão completa:', completedMission.title);
-        // Aqui você pode dar recompensas, salvar progresso, etc.
+        const reward = completedMission.rewardCoronas ?? DEFAULT_MISSION_REWARD;
+        if (!this.gameState.economy) {
+          this.gameState.economy = { coronas: 0 } as GameState['economy'];
+        }
+        this.gameState.economy.coronas = (this.gameState.economy.coronas ?? 0) + reward;
+        this.showNotification(`+${reward.toLocaleString('pt-BR')} coronas por ajudar o Grove!`);
       });
     }
   }

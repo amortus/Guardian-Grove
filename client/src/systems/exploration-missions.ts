@@ -5,6 +5,8 @@
  * Sistema de missões educativas com escolhas e feedback
  */
 
+export const DEFAULT_MISSION_REWARD = 150;
+
 export interface Choice {
   id: string;
   text: string;
@@ -28,6 +30,7 @@ export interface EducationalMission {
   nodes: MissionNode[];
   realWorldPrompt: string; // "Além da Tela"
   completionMessage: string;
+  rewardCoronas?: number;
 }
 
 // ========== MISSÃO 1: LIXO NA CLAREIRA ==========
@@ -114,7 +117,8 @@ export const MISSION_TRASH_IN_CLEARING: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Hoje, tente separar pelo menos 1 tipo de lixo em casa (ex: garrafas plásticas).',
-  completionMessage: 'Você ajudou a natureza! Pequenas ações fazem grande diferença. 🌍'
+  completionMessage: 'Você ajudou a natureza! Pequenas ações fazem grande diferença. 🌍',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 2: ÁRVORE CANSADA ==========
@@ -210,7 +214,8 @@ export const MISSION_TIRED_TREE: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Hoje, olhe para uma árvore perto da sua casa e imagine o que ela "diria" se pudesse falar.',
-  completionMessage: 'Você trouxe esperança para a natureza! Continue cuidando do planeta. 🌍'
+  completionMessage: 'Você trouxe esperança para a natureza! Continue cuidando do planeta. 🌍',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 3: ECONOMIA DE ÁGUA ==========
@@ -298,7 +303,8 @@ export const MISSION_WATER_ECONOMY: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Hoje, tente tomar um banho 1 minuto mais rápido que o normal.',
-  completionMessage: 'Você aprendeu a cuidar da água! Esse recurso é precioso. 💙'
+  completionMessage: 'Você aprendeu a cuidar da água! Esse recurso é precioso. 💙',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 4: BRINCADEIRA JUSTA ==========
@@ -396,7 +402,8 @@ export const MISSION_FAIR_PLAY: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Amanhã, tente chamar alguém que geralmente fica de fora para participar de algo com você.',
-  completionMessage: 'Você espalhou gentileza! Incluir os outros torna o mundo melhor. 💖'
+  completionMessage: 'Você espalhou gentileza! Incluir os outros torna o mundo melhor. 💖',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 5: CARTA DO FUTURO ==========
@@ -482,7 +489,8 @@ export const MISSION_FUTURE_LETTER: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Se quiser, desenhe o "você do futuro" feliz com as coisas boas que você fez.',
-  completionMessage: 'Você fez uma promessa importante! Pequenas ações hoje criam um futuro melhor. 🌟'
+  completionMessage: 'Você fez uma promessa importante! Pequenas ações hoje criam um futuro melhor. 🌟',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 6: CAMINHO DAS ESCOLHAS ==========
@@ -580,7 +588,8 @@ export const MISSION_PATH_OF_CHOICES: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Hoje, se alguém precisar de ajuda, pergunte "Posso ajudar?" antes de agir.',
-  completionMessage: 'Você aprendeu sobre respeito e cooperação! Sempre pergunte antes de ajudar. 🤝'
+  completionMessage: 'Você aprendeu sobre respeito e cooperação! Sempre pergunte antes de ajudar. 🤝',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 7: JARDIM DA HARMONIA ==========
@@ -672,7 +681,8 @@ export const MISSION_HARMONY_GARDEN: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Tente observar uma plantinha perto da sua casa e ver se ela está bem.',
-  completionMessage: 'Você trouxe vida ao jardim! Cuidar da natureza é cuidar do futuro. 🌿'
+  completionMessage: 'Você trouxe vida ao jardim! Cuidar da natureza é cuidar do futuro. 🌿',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 8: COLHEITA CONSCIENTE ==========
@@ -764,7 +774,8 @@ export const MISSION_CONSCIOUS_HARVEST: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Hoje, tente não desperdiçar comida ao montar seu prato.',
-  completionMessage: 'Você entendeu o equilíbrio! Consumir conscientemente protege o futuro. 🍎'
+  completionMessage: 'Você entendeu o equilíbrio! Consumir conscientemente protege o futuro. 🍎',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // ========== MISSÃO 9: FOGO NA MONTANHA ==========
@@ -856,7 +867,8 @@ export const MISSION_MOUNTAIN_FIRE: EducationalMission = {
     }
   ],
   realWorldPrompt: 'Lembre alguém da sua família de nunca deixar uma chama acesa sem cuidar.',
-  completionMessage: 'Você evitou um perigo! Prevenir incêndios protege todos. 🔥→💧'
+  completionMessage: 'Você evitou um perigo! Prevenir incêndios protege todos. 🔥→💧',
+  rewardCoronas: DEFAULT_MISSION_REWARD,
 };
 
 // Continuando com as outras 8 missões...
