@@ -43,6 +43,7 @@ import { Ranch3DUI } from './ui/ranch-3d-ui';
 import { Village3DUI } from './ui/village-3d-ui';
 import { ChatUI } from './ui/chat-ui';
 import { OptionsMenuUI } from './ui/options-menu-ui';
+import { audioManager } from './systems/audio-manager';
 import { registerMessageHandler } from './ui/message-service';
 import { COLORS } from './ui/colors';
 import { createNewGame, saveGame, loadGame, advanceGameWeek, addMoney } from './systems/game-state';
@@ -586,9 +587,6 @@ async function init() {
     // Sistema de áudio - Inicia música de fundo
     // Nota: Navegadores bloqueiam autoplay até interação do usuário
     // A música vai começar após o primeiro clique/toque
-    const { audioManager } = await import('./systems/audio-manager');
-    
-    // Tenta tocar música após qualquer interação do usuário
     const startMusicOnInteraction = () => {
       audioManager.playBackgroundMusic('hub');
       console.log('[AUDIO] 🎵 Sistema de música ativado!');
@@ -1230,6 +1228,7 @@ async function setupGame() {
 
     // Create UI
     gameUI = new GameUI(canvas, gameState!);
+    gameUI.isMuted = audioManager.isMutedState();
     
     // Create Options Menu UI (sem configurações de áudio)
     optionsMenuUI = new OptionsMenuUI(canvas);
@@ -3049,11 +3048,43 @@ function openDailySpinCanvas() {
     // Adicionar recompensa ao gameState
     if (reward.type === 'coronas') {
       gameState!.economy.coronas += Number(reward.value);
+      gameUI?.showNotification(`+${reward.value} Coronas da Roleta!`);
     } else if (reward.type === 'xp' && gameState!.activeBeast) {
       gameState!.activeBeast.xp = (gameState!.activeBeast.xp || 0) + Number(reward.value);
+      gameUI?.showNotification(`+${reward.value} XP para ${gameState!.activeBeast.name}!`);
+    } else if ((reward.type === 'item' || reward.type === 'rare_item' || reward.type === 'legendary_item') && typeof reward.value === 'string') {
+      const itemId = reward.value;
+      const itemData = getItemById(itemId);
+      if (itemData) {
+        const existingItem = gameState!.inventory.find((item) => item.id === itemId);
+        if (existingItem) {
+          existingItem.quantity = (existingItem.quantity || 0) + 1;
+        } else {
+          gameState!.inventory.push({ ...itemData, quantity: 1 });
+        }
+        gameUI?.showNotification(`Você ganhou ${itemData.name}!`);
+      } else {
+        console.warn('[SPIN] ⚠️ Item da roleta não encontrado:', itemId);
+        const fallback = gameState!.inventory.find((item) => item.id === itemId);
+        if (fallback) {
+          fallback.quantity = (fallback.quantity || 0) + 1;
+        } else {
+          gameState!.inventory.push({
+            id: itemId,
+            name: itemId,
+            category: 'special',
+            effect: 'Recompensa da roleta',
+            price: 0,
+            description: 'Item exclusivo encontrado na Roleta',
+            quantity: 1,
+          });
+        }
+      }
     }
     
-    // TODO: Adicionar itens ao inventário
+    if (gameUI && gameState) {
+      gameUI.updateGameState(gameState);
+    }
   };
 
   inDailySpinCanvas = true;

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { ThreeScene } from '../ThreeScene';
 import { BeastModel } from '../models/BeastModel';
 import { getSkyColor } from '../../utils/day-night';
+import { VillageCritters } from '../events/VillageCritters';
 
 const WORLD_Y_OFFSET = -1.15;
 
@@ -43,6 +44,7 @@ export class GuardianHubScene3D {
   private pointer = new THREE.Vector2();
   private cameraOffset = new THREE.Vector3(0, 5.8, 10.4);
   private cameraFollowStrength = 0.12;
+  private critters: VillageCritters | null = null;
   
   // Ghost system (other players)
   private ghostPlayers: Map<string, {
@@ -131,6 +133,7 @@ export class GuardianHubScene3D {
     });
     
     this.setupEnvironment();
+    this.critters = new VillageCritters(this.threeScene.getScene());
   }
 
   private skyboxMesh: THREE.Mesh | null = null;
@@ -531,9 +534,9 @@ export class GuardianHubScene3D {
     try {
       // Houses (3 casas espalhadas) - House1 ajustada (mais para trás e para baixo)
       const housePositions = [
-        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 2.2, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Desceu de 2.5 para 2.2
-        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.5, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) }, // Desceu de 2.8 para 2.5
-        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.5, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) }, // Desceu de 2.8 para 2.5
+        { path: '/assets/3d/Ranch/House/House1.glb', position: new THREE.Vector3(-15, WORLD_Y_OFFSET + 1.9, -15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.4, 0) }, // Desceu mais 0.3
+        { path: '/assets/3d/Ranch/House/House2.glb', position: new THREE.Vector3(12, WORLD_Y_OFFSET + 2.2, -12), scale: 3.6, lanternOffset: new THREE.Vector3(-3, -2.6, 0) }, // Desceu mais 0.3
+        { path: '/assets/3d/Ranch/House/House3.glb', position: new THREE.Vector3(-12, WORLD_Y_OFFSET + 2.2, 15), scale: 3.6, lanternOffset: new THREE.Vector3(3, -2.6, 0) }, // Desceu mais 0.3
       ];
       
       for (const house of housePositions) {
@@ -573,7 +576,7 @@ export class GuardianHubScene3D {
       // Craft (oficina de craft) - 4X MAIOR, sobe mais um pouco
       const craftGltf = await loader.loadAsync('/assets/3d/Village/Craft.glb');
       this.craftModel = craftGltf.scene;
-      this.craftModel.position.set(-20, WORLD_Y_OFFSET + 3.8, -5); // Subiu de 3.2 para 3.8
+      this.craftModel.position.set(-20, WORLD_Y_OFFSET + 4.2, -5); // Subiu mais um pouco
       this.craftModel.scale.setScalar(5.2); // 4x maior
       this.craftModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -588,8 +591,8 @@ export class GuardianHubScene3D {
       // Market (loja) - Lanterna subida
       const marketGltf = await loader.loadAsync('/assets/3d/Village/Market.glb');
       this.marketModel = marketGltf.scene;
-      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.5, 5);
-      this.marketModel.scale.setScalar(1.3);
+      this.marketModel.position.set(18, WORLD_Y_OFFSET + 1.0, 5);
+      this.marketModel.scale.setScalar(3.9); // 3x maior (1.3 -> 3.9)
       this.marketModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.castShadow = true;
@@ -603,7 +606,7 @@ export class GuardianHubScene3D {
       // Mission Board (quadro de missões) - Aumenta tamanho e desce um pouquinho
       const missionGltf = await loader.loadAsync('/assets/3d/Village/Mission.glb');
       this.missionModel = missionGltf.scene;
-      this.missionModel.position.set(-5, WORLD_Y_OFFSET + 1.3, 20); // Desceu de 1.5 para 1.3
+      this.missionModel.position.set(-5, WORLD_Y_OFFSET + 1.6, 20); // Subiu um pouco para destacar a placa
       this.missionModel.scale.setScalar(2.0); // Aumentou de 1.3 para 2.0
       this.missionModel.traverse((child) => {
         if (child instanceof THREE.Mesh) {
@@ -615,8 +618,8 @@ export class GuardianHubScene3D {
       this.addDecoration(this.missionModel);
       await this.addLantern(loader, new THREE.Vector3(-5, WORLD_Y_OFFSET + 0.6, 22));
       
-      // Grass (grama espalhada - 25 tufos)
-      for (let i = 0; i < 25; i++) {
+      // Grass (grama espalhada - agora 40 tufos)
+      for (let i = 0; i < 40; i++) {
         const grassGltf = await loader.loadAsync('/assets/3d/Ranch/Grass/Grass1.glb');
         const grassModel = grassGltf.scene.clone();
         
@@ -626,11 +629,57 @@ export class GuardianHubScene3D {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         
-        grassModel.position.set(x, WORLD_Y_OFFSET + 0.3, z); // Subiu um pouquinho (de 0 para +0.3)
+        grassModel.position.set(x, WORLD_Y_OFFSET + 0.5, z); // Subiu um pouco mais
         grassModel.scale.setScalar(0.8 + Math.random() * 0.4);
         grassModel.rotation.y = Math.random() * Math.PI * 2;
         
         this.addDecoration(grassModel);
+      }
+      
+      // Procedural flowers (cores suaves espalhadas pelo santuário)
+      const flowerColors = [0xffb3c6, 0xffdf70, 0xb7e4c7, 0xffcfe1, 0xf7aef8];
+      const flowerCount = 36;
+      for (let i = 0; i < flowerCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 6 + Math.random() * (this.GROUND_RADIUS - 8);
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        
+        // Evitar área muito central para não atrapalhar o jogador
+        if (Math.abs(x) < 2 && Math.abs(z) < 2) {
+          continue;
+        }
+        
+        const flowerGroup = new THREE.Group();
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6),
+          new THREE.MeshStandardMaterial({ color: 0x3b8d4a, roughness: 0.6 })
+        );
+        stem.position.set(0, WORLD_Y_OFFSET + 0.27, 0);
+        
+        const blossom = new THREE.Mesh(
+          new THREE.SphereGeometry(0.14, 12, 12),
+          new THREE.MeshStandardMaterial({
+            color: flowerColors[Math.floor(Math.random() * flowerColors.length)],
+            emissive: 0x331111,
+            emissiveIntensity: 0.15,
+          })
+        );
+        blossom.position.set(0, WORLD_Y_OFFSET + 0.6, 0);
+        
+        const leaf = new THREE.Mesh(
+          new THREE.SphereGeometry(0.08, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x4caf50 })
+        );
+        leaf.scale.set(1.6, 0.4, 0.8);
+        leaf.position.set(0.08, WORLD_Y_OFFSET + 0.35, 0);
+        
+        flowerGroup.add(stem);
+        flowerGroup.add(blossom);
+        flowerGroup.add(leaf);
+        flowerGroup.position.set(x, 0, z);
+        
+        this.addDecoration(flowerGroup);
       }
       
       // Trees (algumas árvores nas bordas) - AJUSTADO para cima
@@ -645,7 +694,7 @@ export class GuardianHubScene3D {
       for (const pos of treePositions) {
         const treeGltf = await loader.loadAsync('/assets/3d/Ranch/Tree/Tree1.glb');
         const treeModel = treeGltf.scene;
-        treeModel.position.set(pos.x, WORLD_Y_OFFSET + 2.5, pos.z); // Subiu de 1.7 para 2.5 (menos enterradas)
+        treeModel.position.set(pos.x, WORLD_Y_OFFSET + 2.8, pos.z); // Subiu um pouco mais para alinhar com o solo
         treeModel.scale.setScalar(3.0); // 2x maior (era 1.5, agora 3.0)
         treeModel.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -741,7 +790,7 @@ export class GuardianHubScene3D {
     const offsets = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      const radius = 5 + Math.random() * 5;
+      const radius = (5 + Math.random() * 5) * 2; // Raio 2x maior para preencher mais o ar
       const angle = Math.random() * Math.PI * 2;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
@@ -1113,6 +1162,7 @@ export class GuardianHubScene3D {
     this.updateGhostSystem(delta);
     this.checkPortalProximity();
     this.checkBuildingProximity(); // Verifica proximidade com Craft, Market, Missions
+    this.critters?.update(delta);
     
     // Anima skybox (rotação lenta para simular movimento de nuvens)
     if (this.skyboxMesh) {

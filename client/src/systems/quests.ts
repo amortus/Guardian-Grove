@@ -35,7 +35,7 @@ export interface QuestRewards {
 /**
  * Quests Disponíveis
  */
-export const AVAILABLE_QUESTS: Quest[] = [
+const LEGACY_QUESTS: Quest[] = [
   // Quests Iniciantes
   {
     id: 'first_victory',
@@ -1021,6 +1021,109 @@ export const AVAILABLE_QUESTS: Quest[] = [
   },
 ];
 
+const GUARDIAN_GROVE_QUESTS: Quest[] = [
+  {
+    id: 'grove_explorer',
+    name: 'Explorador do Grove',
+    description: 'Complete 3 explorações na Trilha da Descoberta.',
+    type: 'collection',
+    goal: { type: 'exploration_completed', target: 3, current: 0 },
+    rewards: {
+      coronas: 200,
+      items: [{ itemId: 'vital_fruit', quantity: 2 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+  {
+    id: 'grove_cartographer',
+    name: 'Cartógrafo da Floresta',
+    description: 'Complete 10 explorações para mapear todo o santuário.',
+    type: 'collection',
+    goal: { type: 'exploration_completed', target: 10, current: 0 },
+    rewards: {
+      coronas: 600,
+      items: [{ itemId: 'explorer_compass', quantity: 1 }],
+    },
+    isCompleted: false,
+    isActive: false,
+    progress: 0,
+  },
+  {
+    id: 'craft_apprentice',
+    name: 'Aprendiz de Artesão',
+    description: 'Crie 5 itens na oficina do Craft.',
+    type: 'collection',
+    goal: { type: 'craft', target: 5, current: 0 },
+    rewards: {
+      coronas: 250,
+      items: [{ itemId: 'training_weights', quantity: 1 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+  {
+    id: 'market_supporter',
+    name: 'Apoiador do Mercado',
+    description: 'Gaste 500 Coronas no Market para apoiar os comerciantes locais.',
+    type: 'collection',
+    goal: { type: 'spend_money', target: 500, current: 0 },
+    rewards: {
+      coronas: 300,
+      items: [{ itemId: 'focus_charm', quantity: 1 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+  {
+    id: 'grove_storyteller',
+    name: 'Historiador do Grove',
+    description: 'Converse com 4 NPCs diferentes para coletar histórias do santuário.',
+    type: 'social',
+    goal: { type: 'talk_to_npc', target: 4, current: 0 },
+    rewards: {
+      coronas: 200,
+      items: [{ itemId: 'mood_herb', quantity: 2 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+  {
+    id: 'resource_alchemist',
+    name: 'Coletor Sustentável',
+    description: 'Colete 20 materiais durante explorações.',
+    type: 'collection',
+    goal: { type: 'materials_collected', target: 20, current: 0 },
+    rewards: {
+      coronas: 400,
+      items: [{ itemId: 'serene_herb', quantity: 3 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+  {
+    id: 'wealth_caretaker',
+    name: 'Patrono Verde',
+    description: 'Acumule 2.000 Coronas para investir no santuário.',
+    type: 'collection',
+    goal: { type: 'money_accumulated', target: 2000, current: 0 },
+    rewards: {
+      coronas: 800,
+      items: [{ itemId: 'ancient_relic', quantity: 1 }],
+    },
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+  },
+];
+
+export const AVAILABLE_QUESTS: Quest[] = GUARDIAN_GROVE_QUESTS;
+
 // REMOVIDO: Sistema antigo de tracking (trackAction, updateQuestProgress, trackSpending)
 // Agora tudo funciona via eventos (updateQuests + game-events.ts)
 // Isso previne contagem duplicada de progresso
@@ -1043,62 +1146,14 @@ export function getActiveQuests(quests: Quest[]): Quest[] {
  * Desbloqueia quests baseado em progresso
  */
 export function unlockQuests(quests: Quest[]): void {
-  const victories = quests.find(q => q.id === 'first_victory' && q.isCompleted);
-  if (victories) {
-    const silverQuest = quests.find(q => q.id === 'silver_champion');
-    if (silverQuest && !silverQuest.isActive) {
-      silverQuest.isActive = true;
-      silverQuest.goal.current = 0;
-      silverQuest.progress = 0;
-      console.log('[Quest] Desbloqueada: Campeão de Prata');
-    }
-  }
-
-  const silverChampion = quests.find(q => q.id === 'silver_champion' && q.isCompleted);
-  if (silverChampion) {
-    const goldQuest = quests.find(q => q.id === 'gold_legend');
-    if (goldQuest && !goldQuest.isActive) {
-      goldQuest.isActive = true;
-      goldQuest.goal.current = 0;
-      goldQuest.progress = 0;
-      console.log('[Quest] Desbloqueada: Lenda Dourada');
-    }
-  }
-
-  const firstTraining = quests.find(q => q.id === 'first_training' && q.isCompleted);
-  if (firstTraining) {
-    const masterQuest = quests.find(q => q.id === 'master_trainer');
-    if (masterQuest && !masterQuest.isActive) {
-      masterQuest.isActive = true;
-      // BUG FIX: Resetar progresso ao desbloquear quest
-      // Isso previne que treinos feitos ANTES da quest contem
-      masterQuest.goal.current = 0;
-      masterQuest.progress = 0;
-      console.log('[Quest] Desbloqueada: Mestre Treinador');
-    }
-  }
-  
-  // Desbloquear "Explorador Veterano" após completar "Explorador Novato"
-  const explorerRookie = quests.find(q => q.id === 'explorer_rookie' && q.isCompleted);
-  if (explorerRookie) {
-    const veteranQuest = quests.find(q => q.id === 'explorer_veteran');
-    if (veteranQuest && !veteranQuest.isActive) {
-      veteranQuest.isActive = true;
-      veteranQuest.goal.current = 0;
-      veteranQuest.progress = 0;
-      console.log('[Quest] Desbloqueada: Explorador Veterano');
-    }
-  }
-  
-  // Desbloquear "Grande Faturador" após completar "Trabalhador Dedicado"
-  const hardworker = quests.find(q => q.id === 'hardworker' && q.isCompleted);
-  if (hardworker) {
-    const bigEarner = quests.find(q => q.id === 'big_earner');
-    if (bigEarner && !bigEarner.isActive) {
-      bigEarner.isActive = true;
-      bigEarner.goal.current = 0;
-      bigEarner.progress = 0;
-      console.log('[Quest] Desbloqueada: Grande Faturador');
+  const explorerQuest = quests.find(q => q.id === 'grove_explorer' && q.isCompleted);
+  if (explorerQuest) {
+    const cartographerQuest = quests.find(q => q.id === 'grove_cartographer');
+    if (cartographerQuest && !cartographerQuest.isActive) {
+      cartographerQuest.isActive = true;
+      cartographerQuest.goal.current = 0;
+      cartographerQuest.progress = 0;
+      console.log('[Quest] Desbloqueada: Cartógrafo da Floresta');
     }
   }
 }
